@@ -6,10 +6,12 @@
       Everything this page needs is served from its own origin. The policy
       below forbids the page from contacting any other server: no network
       requests, sockets, external scripts, styles, fonts, images or forms.
+      Requests to this site itself are allowed only so the speech model can
+      be loaded on demand.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; connect-src 'none'; font-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
+      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self' blob:; connect-src 'self'; font-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
     />
     <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -102,6 +104,21 @@
             Click or drag to tune · scroll to fine‑tune
           </div>
         </div>
+        <div class="transcript" id="transcript" hidden>
+          <div class="transcript-head">
+            <strong>Transcript</strong>
+            <span id="sttStatus" class="stt-status" data-state="off"></span>
+            <div class="meter stt-progress" id="sttProgress" hidden>
+              <div id="sttProgressBar"></div>
+            </div>
+            <div class="transcript-actions">
+              <button id="copyTranscript" type="button">Copy</button>
+              <button id="exportTranscript" type="button">Save</button>
+              <button id="clearTranscript" type="button">Clear</button>
+            </div>
+          </div>
+          <ol id="transcriptList" class="transcript-list"></ol>
+        </div>
       </section>
 
       <aside class="panel">
@@ -134,6 +151,31 @@
             <label for="volumeInput">Volume</label>
             <input id="volumeInput" type="range" min="0" max="100" />
             <output id="volumeOut"></output>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Speech to text</summary>
+          <div class="field check">
+            <input id="sttBox" type="checkbox" />
+            <label for="sttBox">Transcribe audio to text</label>
+          </div>
+          <div class="field">
+            <label for="sttModelSelect">Model (runs on this device)</label>
+            <select id="sttModelSelect">
+              <option value="moonshine-base">Moonshine Base · 66 MB · most accurate</option>
+              <option value="moonshine-tiny">Moonshine Tiny · 32 MB · fastest</option>
+            </select>
+          </div>
+          <div class="field">
+            <small class="hint">
+              English only. The model downloads from this site the first time
+              you turn this on, then stays on this device for offline use.
+              Works best with squelch set so only speech gets through.
+            </small>
+          </div>
+          <div class="field">
+            <button id="sttDeleteButton" type="button">Delete downloaded models</button>
           </div>
         </details>
 
@@ -265,7 +307,9 @@
               <b>Privacy:</b> this app never contacts any server. All radio
               processing happens on your computer, settings stay in this
               browser, and after the first visit it works fully offline. A
-              Content Security Policy blocks all network requests.
+              Content Security Policy blocks requests to any other server.
+              Speech to text runs locally too: the model is served by this
+              site and your audio never leaves your device.
             </p>
           </div>
         </details>

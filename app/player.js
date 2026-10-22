@@ -34,6 +34,8 @@ export class RecordingPlayer {
     this.lastPlayedAt = -1;
     this.level = 0;
     this.pool = new Map();
+    /** Called with every block of demodulated audio, before the volume is applied. */
+    this.onAudio = undefined;
   }
 
   get sampleRate() {
@@ -58,6 +60,7 @@ export class RecordingPlayer {
   }
 
   play(left, right) {
+    if (this.onAudio) this.onAudio(left, right);
     const ac = this.context();
     let sum = 0;
     for (let i = 0; i < left.length; ++i) sum += left[i] * left[i];

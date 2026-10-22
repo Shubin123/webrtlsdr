@@ -103,10 +103,21 @@
             </ul>
           </article>
           <article class="card">
+            <h3>Speech to text</h3>
+            <ul>
+              <li>Live transcript of what you are hearing, with time, frequency and mode for each transmission</li>
+              <li>Runs the Moonshine speech recognition model on your device; audio never leaves your computer</li>
+              <li>Moonshine Base (66 MB, most accurate) or Moonshine Tiny (32 MB, fastest), both more accurate than OpenAI Whisper models of similar size</li>
+              <li>Downloads from this site only when you turn it on, then works offline</li>
+              <li>Splits transmissions automatically; copy or save the transcript as text</li>
+              <li>English only</li>
+            </ul>
+          </article>
+          <article class="card">
             <h3>Private and offline</h3>
             <ul>
               <li>Never contacts any server; all radio processing happens on your device</li>
-              <li>A Content Security Policy blocks every network request</li>
+              <li>A Content Security Policy blocks every request to any other server</li>
               <li>No CDN, web fonts, analytics or trackers</li>
               <li>Works fully offline after the first visit and can be installed as an app</li>
             </ul>
@@ -153,7 +164,10 @@
       <footer class="doc-footer">
         Built on the Web RTL-SDR and Signals libraries by Jacobo Tarrio,
         licensed under the Apache License 2.0 (<a href="licenses/webrtlsdr-LICENSE.txt">webrtlsdr</a>,
-        <a href="licenses/signals-LICENSE.txt">signals</a>).
+        <a href="licenses/signals-LICENSE.txt">signals</a>). Speech recognition
+        uses Moonshine by Useful Sensors (MIT License),
+        <a href="licenses/transformers-LICENSE.txt">Transformers.js</a> and
+        <a href="licenses/onnxruntime-web-LICENSE.txt">ONNX Runtime Web</a>.
       </footer>
     </main>
   </body>

@@ -28,6 +28,7 @@ import {
 import { FakeRtlDeviceProvider } from "./lib/webrtlsdr/fakertl/fakertl.js";
 import { RadioErrorType } from "./lib/webrtlsdr/errors.js";
 import { RecordingPlayer } from "./player.js";
+import { MODELS, Transcriber } from "./transcriber.js";
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -61,6 +62,8 @@ const DEFAULTS = {
   step: 100000,
   autoStart: true,
   simulated: false,
+  stt: false,
+  sttModel: "moonshine-base",
   bookmarks: DEFAULT_BOOKMARKS,
 };
 
@@ -125,6 +128,14 @@ const radio = new Radio(
   CompositeReceiver.of(demodulator, spectrum),
   { buffersPerSecond: settings.buffersPerSecond },
 );
+
+const transcriber = new Transcriber(new URL("./", location.href).href, () => ({
+  time: new Date(),
+  frequency: settings.frequency + settings.offset,
+  scheme: settings.scheme,
+}));
+player.onAudio = (left, right) => transcriber.push(left, right);
+const transcript = [];
 
 const knownModes = {};
 for (const scheme of getSchemes()) {
@@ -303,6 +314,17 @@ for (const id of [
   "log",
   "startOverlay",
   "startOverlayButton",
+  "sttBox",
+  "sttModelSelect",
+  "sttDeleteButton",
+  "transcript",
+  "sttStatus",
+  "sttProgress",
+  "sttProgressBar",
+  "transcriptList",
+  "copyTranscript",
+  "exportTranscript",
+  "clearTranscript",
 ]) {
   el[id] = document.getElementById(id);
 }
@@ -799,6 +821,109 @@ async function toggleRecording() {
 }
 
 // ---------------------------------------------------------------------------
+// Speech to text
+
+function initSpeechToText() {
+  if (!(settings.sttModel in MODELS)) settings.sttModel = "moonshine-base";
+  el.sttBox.checked = settings.stt;
+  el.sttModelSelect.value = settings.sttModel;
+  transcriber.setModel(settings.sttModel);
+
+  transcriber.addEventListener("status", (e) => {
+    const { state, message, progress } = e.detail;
+    el.sttStatus.dataset.state = state;
+    el.sttStatus.textContent = message;
+    el.sttProgress.hidden = state !== "loading";
+    if (progress !== undefined) {
+      el.sttProgressBar.style.width = `${Math.round(progress * 100)}%`;
+    }
+    if (state === "error") log(message, true);
+  });
+  transcriber.addEventListener("transcript", (e) => addTranscript(e.detail));
+
+  el.sttBox.addEventListener("change", () => {
+    settings.stt = el.sttBox.checked;
+    saveSettings();
+    applySpeechToText();
+  });
+  el.sttModelSelect.addEventListener("change", () => {
+    settings.sttModel = el.sttModelSelect.value;
+    saveSettings();
+    transcriber.setModel(settings.sttModel);
+  });
+  el.sttDeleteButton.addEventListener("click", async () => {
+    if (!confirm("Delete the downloaded speech models from this device?")) return;
+    if (settings.stt) {
+      settings.stt = false;
+      el.sttBox.checked = false;
+      saveSettings();
+      applySpeechToText();
+    }
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter((k) => k.startsWith("webrtlsdr-models")).map((k) => caches.delete(k)),
+    );
+    log("Deleted downloaded speech models");
+  });
+  el.copyTranscript.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(transcriptText());
+      log("Transcript copied");
+    } catch {
+      log("Could not copy the transcript", true);
+    }
+  });
+  el.exportTranscript.addEventListener("click", () => {
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadBlob(
+      new Blob([transcriptText()], { type: "text/plain" }),
+      `transcript-${stamp}.txt`,
+    );
+  });
+  el.clearTranscript.addEventListener("click", () => {
+    transcript.length = 0;
+    el.transcriptList.replaceChildren();
+  });
+  applySpeechToText();
+}
+
+function applySpeechToText() {
+  el.transcript.hidden = !settings.stt;
+  transcriber.setEnabled(settings.stt);
+}
+
+function addTranscript({ text, seconds, context }) {
+  const entry = { ...context, text, seconds };
+  transcript.push(entry);
+  const li = document.createElement("li");
+  const meta = document.createElement("span");
+  meta.className = "meta";
+  meta.textContent = `${entry.time.toLocaleTimeString()} · ${formatMHz(entry.frequency)} MHz ${entry.scheme}`;
+  const body = document.createElement("span");
+  body.className = "text";
+  body.textContent = text;
+  li.append(meta, body);
+  const atBottom =
+    el.transcriptList.scrollTop + el.transcriptList.clientHeight >=
+    el.transcriptList.scrollHeight - 8;
+  el.transcriptList.append(li);
+  while (el.transcriptList.children.length > 500) {
+    el.transcriptList.firstChild.remove();
+    transcript.shift();
+  }
+  if (atBottom) el.transcriptList.scrollTop = el.transcriptList.scrollHeight;
+}
+
+function transcriptText() {
+  return transcript
+    .map(
+      (t) =>
+        `[${t.time.toISOString()}] ${formatMHz(t.frequency)} MHz ${t.scheme}: ${t.text}`,
+    )
+    .join("\n");
+}
+
+// ---------------------------------------------------------------------------
 // Spectrum and waterfall
 
 const COLORMAP = (() => {
@@ -1131,6 +1256,7 @@ async function main() {
   }
   initControls();
   initScope();
+  initSpeechToText();
   await applySettingsToRadio();
   updateModeControls();
   updateStatus();

@@ -17,11 +17,14 @@ const types = {
   ".json": "application/json",
   ".webmanifest": "application/manifest+json",
   ".txt": "text/plain; charset=utf-8",
+  ".wasm": "application/wasm",
+  ".onnx": "application/octet-stream",
 };
 
 http
   .createServer((req, res) => {
     const url = new URL(req.url, "http://localhost");
+    if (process.env.LOG) console.log(req.method, url.pathname);
     let file = path.join(root, decodeURIComponent(url.pathname));
     if (!file.startsWith(root)) {
       res.writeHead(403).end();
@@ -37,6 +40,7 @@ http
       }
       res.writeHead(200, {
         "Content-Type": types[path.extname(file)] || "application/octet-stream",
+        "Content-Length": data.length,
         "Cache-Control": "no-cache",
       });
       res.end(data);

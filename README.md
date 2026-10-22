@@ -12,7 +12,7 @@ This library powers Radio Receiver, my browser-based SDR application, which you 
 
 ## Web app (offline, plug and play)
 
-This fork includes a complete receiver app in [`app/`](app/) that is published as a static site on GitHub Pages: **https://shubin123.github.io/webrtlsdr/**
+This fork includes a complete receiver app in [`app/`](app/) that is published as a static site on GitHub Pages: **https://shubin123.github.io/webrtlsdr/** (see the [capabilities page](https://shubin123.github.io/webrtlsdr/capabilities.html) for everything it can do).
 
 - **Plug and play:** press *Connect SDR* once to grant the page access to your stick (browsers require this the first time). After that the stick is picked up automatically whenever it is plugged in, and playback starts on its own (can be turned off under *Advanced*). Unplugging stops cleanly.
 - **Features:** WBFM (stereo), NBFM, AM, USB, LSB and CW; live spectrum and waterfall with click/drag/scroll tuning; bandwidth, squelch, volume, RF gain/AGC, sample rate, PPM correction, direct sampling (HF), bias tee, FFT size; bookmarks with JSON import/export; recording audio to a local file; signal and audio meters; keyboard shortcuts; a simulated SDR to try it without hardware.
@@ -28,6 +28,17 @@ npm run serve        # http://localhost:8080 (WebUSB works on localhost)
 ```
 
 You can copy the `site/` folder to any static web server. WebUSB requires HTTPS or `localhost`.
+
+### Publishing to GitHub Pages
+
+No GitHub Actions are used. Pages serves the prebuilt files committed to the `gh-pages` branch. To publish an update:
+
+```shell
+npm run build:site
+git -C site init -q && git -C site add -A && git -C site commit -qm "Publish site"
+git -C site push -f "$(git remote get-url origin)" HEAD:gh-pages
+rm -rf site/.git
+```
 
 ### Troubleshooting
 

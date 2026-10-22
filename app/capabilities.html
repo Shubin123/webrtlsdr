@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; worker-src 'self'; connect-src 'none'; font-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Capabilities · Web RTL-SDR</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="doc">
+    <header class="topbar">
+      <div class="brand">
+        <img src="icon.svg" alt="" width="24" height="24" />
+        <span>Web RTL-SDR</span>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="./">Open the receiver</a>
+      </div>
+    </header>
+
+    <main class="doc-main">
+      <section class="hero">
+        <h1>A complete radio receiver in your browser</h1>
+        <p>
+          Plug an RTL-SDR USB stick into your computer or Android phone and
+          listen to FM broadcast, aviation, marine, weather, amateur radio and
+          more. Nothing to install, no account, and no data ever leaves your
+          device.
+        </p>
+        <p class="cta">
+          <a class="button primary big" href="./">Open the receiver</a>
+          <a class="button big" href="./#simulated">Try it without hardware</a>
+        </p>
+      </section>
+
+      <section>
+        <h2>Capabilities</h2>
+        <div class="cards">
+          <article class="card">
+            <h3>Plug and play</h3>
+            <ul>
+              <li>Allow your stick once with <i>Connect SDR</i>; after that it is detected automatically whenever it is plugged in</li>
+              <li>Starts playing on plug-in (can be turned off)</li>
+              <li>Stops cleanly when unplugged and resumes when plugged back in</li>
+              <li>Remembers every setting between visits</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Demodulation modes</h3>
+            <ul>
+              <li><b>WBFM</b>: FM broadcast with stereo decoding and stereo indicator</li>
+              <li><b>NBFM</b>: two-way radio, marine, weather, amateur</li>
+              <li><b>AM</b>: aviation, medium wave, shortwave broadcast</li>
+              <li><b>USB / LSB</b>: single sideband for amateur and utility HF</li>
+              <li><b>CW</b>: Morse code</li>
+              <li>Adjustable bandwidth and squelch per mode</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Spectrum and waterfall</h3>
+            <ul>
+              <li>Live spectrum with a frequency scale and auto-levelling noise floor</li>
+              <li>Scrolling colour waterfall</li>
+              <li>Click or drag to tune; scroll to fine-tune</li>
+              <li>The passband is drawn on the display</li>
+              <li>FFT size from 512 to 8192 bins; adjustable display range</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Tuning</h3>
+            <ul>
+              <li>Type a frequency in MHz, kHz, GHz or Hz</li>
+              <li>Step buttons with steps from 10 Hz to 1 MHz, including 6.25, 8.33, 9 and 12.5 kHz channel spacings</li>
+              <li>Retunes the stick only when you leave the visible band, so tuning is instant</li>
+              <li>Keyboard: <kbd>←</kbd> <kbd>→</kbd> to step, <kbd>Shift</kbd> for ×10, <kbd>Space</kbd> to play/stop</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Tuner control</h3>
+            <ul>
+              <li>Automatic gain or manual RF gain from 0 to 50 dB</li>
+              <li>Sample rates from 250 kHz to 2.88 MHz</li>
+              <li>Frequency correction (PPM) for inexpensive crystals</li>
+              <li>Direct sampling (I or Q branch) for HF below 28.8 MHz</li>
+              <li>Bias tee to power an active antenna or LNA</li>
+              <li>Adjustable buffers per second</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Bookmarks and recording</h3>
+            <ul>
+              <li>Bookmark frequencies along with their modes; starter list included</li>
+              <li>Export and import bookmarks as JSON files</li>
+              <li>Record the audio you are hearing and save it to your computer</li>
+              <li>Signal-strength and audio-level meters</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Private and offline</h3>
+            <ul>
+              <li>Never contacts any server; all radio processing happens on your device</li>
+              <li>A Content Security Policy blocks every network request</li>
+              <li>No CDN, web fonts, analytics or trackers</li>
+              <li>Works fully offline after the first visit and can be installed as an app</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Simulated SDR</h3>
+            <ul>
+              <li>Try everything without hardware</li>
+              <li>Simulated FM stations near 88.5 MHz (one in stereo), an AM signal on 121.5 MHz, NBFM on 146.52 and 162.55 MHz, AM on 810 kHz and an SSB signal near 14.225 MHz</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Requirements</h2>
+        <div class="cards">
+          <article class="card">
+            <h3>Hardware</h3>
+            <ul>
+              <li>An RTL2832U-based USB stick with an R820T, R820T2, R828D or R860 tuner (for example, RTL-SDR Blog V3/V4 or a generic DVB-T dongle)</li>
+              <li>An antenna suited to the band you want to hear</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Browser</h3>
+            <ul>
+              <li>Chrome, Edge, Opera or another Chromium-based browser on Windows, macOS, Linux, ChromeOS or Android (WebUSB)</li>
+              <li>Firefox and Safari do not support WebUSB</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Operating system setup</h3>
+            <ul>
+              <li><b>macOS, ChromeOS:</b> nothing to install</li>
+              <li><b>Android:</b> use a USB OTG adapter</li>
+              <li><b>Windows:</b> install the WinUSB driver for the stick with Zadig</li>
+              <li><b>Linux:</b> unload the DVB-T driver (<code>sudo rmmod dvb_usb_rtl28xxu</code>) and give your user access to the device with a udev rule</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <footer class="doc-footer">
+        Built on the Web RTL-SDR and Signals libraries by Jacobo Tarrio,
+        licensed under the Apache License 2.0 (<a href="licenses/webrtlsdr-LICENSE.txt">webrtlsdr</a>,
+        <a href="licenses/signals-LICENSE.txt">signals</a>).
+      </footer>
+    </main>
+  </body>
+</html>

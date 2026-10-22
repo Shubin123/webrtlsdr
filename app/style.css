@@ -63,6 +63,8 @@ input,
 
 button,
 .button {
+  display: inline-block;
+  text-decoration: none;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -81,7 +83,8 @@ button:disabled {
   cursor: default;
 }
 
-button.primary {
+button.primary,
+.button.primary {
   background: var(--accent);
   color: var(--accent-text);
   border-color: var(--accent);
@@ -104,7 +107,8 @@ button.danger {
   color: var(--bad);
 }
 
-button.big {
+button.big,
+.button.big {
   font-size: 1.2em;
   padding: 14px 24px;
 }
@@ -523,4 +527,71 @@ code {
 
 .overlay[hidden] {
   display: none;
+}
+
+/* Capabilities page */
+
+body.doc {
+  display: block;
+  height: auto;
+}
+
+.doc-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.hero h1 {
+  font-size: 2em;
+  margin: 16px 0 8px;
+}
+
+.hero p {
+  color: var(--muted);
+  max-width: 60em;
+  font-size: 1.1em;
+}
+
+.cta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 18px 12px;
+}
+
+.card h3 {
+  color: var(--accent);
+}
+
+.card ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.card li {
+  margin: 6px 0;
+}
+
+.doc-footer {
+  margin-top: 40px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.doc-footer a,
+.help a {
+  color: var(--accent);
 }

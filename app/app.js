@@ -1125,6 +1125,10 @@ function registerServiceWorker() {
 // ---------------------------------------------------------------------------
 
 async function main() {
+  if (location.hash === "#simulated") {
+    settings.simulated = true;
+    history.replaceState(null, "", location.pathname);
+  }
   initControls();
   initScope();
   await applySettingsToRadio();

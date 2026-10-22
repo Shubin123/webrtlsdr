@@ -31,6 +31,22 @@ const TUNERS = [
   { vendorId: 0x0bda, productId: 0x2838 },
 ];
 
+/** Returns whether the given USB device is a known RTL2832U device. */
+export function isRtlDevice(device: USBDevice): boolean {
+  return TUNERS.some(
+    (t) => t.vendorId == device.vendorId && t.productId == device.productId,
+  );
+}
+
+/** Returns a connected RTL2832U device the user has already granted access to, if any. */
+export async function findKnownDevice(
+  webusb: USB | undefined = navigator.usb,
+): Promise<USBDevice | undefined> {
+  if (webusb === undefined) return undefined;
+  const devices = await webusb.getDevices();
+  return devices.find(isRtlDevice);
+}
+
 /** Options for the RTL2832U_Provider constructor. */
 export type RtlOptions = {
   /**
@@ -54,8 +70,14 @@ export class RTL2832U_Provider implements RtlDeviceProvider {
     if (this.device === undefined) {
       this.device = await this.getDevice();
     }
-    await this.device!.open();
-    return RTL2832U.open(this.device!);
+    try {
+      await this.device!.open();
+      return await RTL2832U.open(this.device!);
+    } catch (e) {
+      // The device may have been unplugged; look it up again next time.
+      this.device = undefined;
+      throw e;
+    }
   }
 
   private async getDevice(): Promise<USBDevice> {
@@ -65,8 +87,12 @@ export class RTL2832U_Provider implements RtlDeviceProvider {
         RadioErrorType.NoUsbSupport,
       );
     }
+    // Reuse a device the user already granted access to, so that a stick
+    // that was paired once works without showing the chooser again.
+    const known = await findKnownDevice(this.webusb);
+    if (known !== undefined) return known;
     try {
-      return this.webusb.requestDevice({ filters: TUNERS });
+      return await this.webusb.requestDevice({ filters: TUNERS });
     } catch (e) {
       throw new RadioError(
         `No device was selected`,

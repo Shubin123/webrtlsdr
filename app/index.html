@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Everything this page needs is served from its own origin. The policy
+      below forbids the page from contacting any other server: no network
+      requests, sockets, external scripts, styles, fonts, images or forms.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; manifest-src 'self'; worker-src 'self'; connect-src 'none'; font-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0d1117" />
+    <title>Web RTL-SDR Receiver</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" type="module"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img src="icon.svg" alt="" width="24" height="24" />
+        <span>Web RTL-SDR</span>
+      </div>
+      <div class="status" id="status" data-state="idle">
+        <span class="dot"></span><span id="statusText">Starting…</span>
+      </div>
+      <div class="actions">
+        <button id="connectButton" class="secondary" type="button">
+          Connect SDR
+        </button>
+        <button id="playButton" class="primary" type="button">Play</button>
+        <button id="recordButton" type="button" disabled>Record</button>
+      </div>
+    </header>
+
+    <div id="banner" class="banner" hidden>
+      <span id="bannerText"></span>
+      <button id="bannerButton" type="button" hidden></button>
+    </div>
+
+    <main class="layout">
+      <section class="display">
+        <div class="readout">
+          <div class="freq">
+            <input
+              id="freqInput"
+              class="freq-input"
+              inputmode="decimal"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Tuned frequency in MHz"
+            />
+            <span class="unit">MHz</span>
+          </div>
+          <div class="tune-buttons">
+            <button type="button" data-step="-1" title="Tune down (←)">
+              ◀
+            </button>
+            <select id="stepSelect" aria-label="Tuning step">
+              <option value="10">10 Hz</option>
+              <option value="100">100 Hz</option>
+              <option value="1000">1 kHz</option>
+              <option value="5000">5 kHz</option>
+              <option value="6250">6.25 kHz</option>
+              <option value="8333">8.33 kHz</option>
+              <option value="9000">9 kHz</option>
+              <option value="10000">10 kHz</option>
+              <option value="12500">12.5 kHz</option>
+              <option value="25000">25 kHz</option>
+              <option value="100000">100 kHz</option>
+              <option value="200000">200 kHz</option>
+              <option value="1000000">1 MHz</option>
+            </select>
+            <button type="button" data-step="1" title="Tune up (→)">▶</button>
+          </div>
+          <div class="indicators">
+            <span id="modeBadge" class="badge"></span>
+            <span id="stereoBadge" class="badge" hidden>STEREO</span>
+            <span id="directBadge" class="badge warn" hidden>DIRECT</span>
+            <span id="recBadge" class="badge rec" hidden>● REC</span>
+          </div>
+          <div class="meters">
+            <label>Signal</label>
+            <div class="meter"><div id="signalBar"></div></div>
+            <span id="signalText" class="meter-text">—</span>
+            <label>Audio</label>
+            <div class="meter"><div id="audioBar"></div></div>
+            <span id="audioText" class="meter-text">—</span>
+          </div>
+        </div>
+        <div class="scope" id="scope">
+          <canvas id="spectrumCanvas"></canvas>
+          <canvas id="waterfallCanvas"></canvas>
+          <div class="scope-hint" id="scopeHint">
+            Click or drag to tune · scroll to fine‑tune
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <details open>
+          <summary>Demodulation</summary>
+          <div class="field">
+            <label for="schemeSelect">Mode</label>
+            <select id="schemeSelect"></select>
+          </div>
+          <div class="field">
+            <label for="bandwidthInput">Bandwidth (Hz)</label>
+            <input id="bandwidthInput" type="number" min="1" step="100" />
+          </div>
+          <div class="field">
+            <label for="squelchInput">Squelch</label>
+            <input
+              id="squelchInput"
+              type="range"
+              min="0"
+              max="6"
+              step="0.1"
+            />
+            <output id="squelchOut"></output>
+          </div>
+          <div class="field check">
+            <input id="stereoBox" type="checkbox" />
+            <label for="stereoBox">Stereo</label>
+          </div>
+          <div class="field">
+            <label for="volumeInput">Volume</label>
+            <input id="volumeInput" type="range" min="0" max="100" />
+            <output id="volumeOut"></output>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Tuner</summary>
+          <div class="field check">
+            <input id="autoGainBox" type="checkbox" />
+            <label for="autoGainBox">Automatic gain</label>
+          </div>
+          <div class="field">
+            <label for="gainInput">RF gain (dB)</label>
+            <input id="gainInput" type="range" min="0" max="50" step="0.5" />
+            <output id="gainOut"></output>
+          </div>
+          <div class="field">
+            <label for="sampleRateSelect">Sample rate</label>
+            <select id="sampleRateSelect">
+              <option value="250000">250 kHz</option>
+              <option value="1024000">1.024 MHz</option>
+              <option value="1536000">1.536 MHz</option>
+              <option value="2048000">2.048 MHz</option>
+              <option value="2400000">2.4 MHz</option>
+              <option value="2880000">2.88 MHz</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ppmInput">Frequency correction (PPM)</label>
+            <input id="ppmInput" type="number" step="1" />
+          </div>
+        </details>
+
+        <details>
+          <summary>Advanced</summary>
+          <div class="field">
+            <label for="directSelect">Direct sampling (HF below 28.8 MHz)</label>
+            <select id="directSelect">
+              <option value="0">Off</option>
+              <option value="1">I branch</option>
+              <option value="2">Q branch (RTL-SDR Blog V3)</option>
+            </select>
+          </div>
+          <div class="field check">
+            <input id="biasTeeBox" type="checkbox" />
+            <label for="biasTeeBox">Bias tee (powers antenna LNA)</label>
+          </div>
+          <div class="field">
+            <label for="buffersInput">Buffers per second</label>
+            <input id="buffersInput" type="number" min="1" max="100" />
+          </div>
+          <div class="field">
+            <label for="fftSelect">FFT size</label>
+            <select id="fftSelect">
+              <option value="512">512</option>
+              <option value="1024">1024</option>
+              <option value="2048">2048</option>
+              <option value="4096">4096</option>
+              <option value="8192">8192</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rangeInput">Display range (dB)</label>
+            <input id="rangeInput" type="range" min="20" max="120" step="5" />
+            <output id="rangeOut"></output>
+          </div>
+          <div class="field check">
+            <input id="autoStartBox" type="checkbox" />
+            <label for="autoStartBox">Start playing when the SDR is plugged in</label>
+          </div>
+          <div class="field check">
+            <input id="simulatedBox" type="checkbox" />
+            <label for="simulatedBox">Use simulated SDR (no hardware)</label>
+          </div>
+          <div class="field">
+            <button id="resetButton" type="button" class="danger">
+              Reset all settings
+            </button>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Bookmarks</summary>
+          <div class="field row">
+            <input id="bookmarkName" placeholder="Name" maxlength="40" />
+            <button id="addBookmark" type="button">Add</button>
+          </div>
+          <ul id="bookmarkList" class="bookmarks"></ul>
+          <div class="field row">
+            <button id="exportBookmarks" type="button">Export</button>
+            <label class="button" for="importBookmarks">Import</label>
+            <input
+              id="importBookmarks"
+              type="file"
+              accept="application/json,.json"
+              hidden
+            />
+          </div>
+        </details>
+
+        <details>
+          <summary>Log</summary>
+          <ol id="log" class="log"></ol>
+        </details>
+
+        <details>
+          <summary>Help &amp; privacy</summary>
+          <div class="help">
+            <p>
+              Works with RTL2832U-based USB sticks (R820T/R820T2/R828D/R860
+              tuners) in Chrome, Edge or Opera on desktop and Android.
+            </p>
+            <p>
+              <b>First time:</b> plug in the stick and press
+              <i>Connect SDR</i> to give this page permission to use it.
+              After that it is plug and play: the stick is picked up
+              automatically whenever it is plugged in.
+            </p>
+            <p>
+              <b>Linux:</b> unload the DVB-T kernel driver first
+              (<code>sudo rmmod dvb_usb_rtl28xxu</code>) and make sure your
+              user can access the USB device.
+              <b>Windows:</b> install the WinUSB driver for the stick with
+              Zadig.
+            </p>
+            <p>
+              <b>Shortcuts:</b> <kbd>Space</kbd> play/stop, <kbd>←</kbd>
+              <kbd>→</kbd> tune by step, <kbd>Shift</kbd>+arrows ×10.
+            </p>
+            <p>
+              <b>Privacy:</b> this app never contacts any server. All radio
+              processing happens on your computer, settings stay in this
+              browser, and after the first visit it works fully offline. A
+              Content Security Policy blocks all network requests.
+            </p>
+          </div>
+        </details>
+      </aside>
+    </main>
+
+    <div id="startOverlay" class="overlay" hidden>
+      <button id="startOverlayButton" type="button" class="primary big">
+        SDR detected — click to start listening
+      </button>
+    </div>
+  </body>
+</html>

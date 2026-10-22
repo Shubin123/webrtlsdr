@@ -11,9 +11,13 @@
   "exports": {
     "./*.js": "./dist/*.js"
   },
-  "files": ["./dist"],
+  "files": [
+    "./dist"
+  ],
   "scripts": {
-    "build": "rm -fR dist/ && tsc"
+    "build": "rm -fR dist/ && tsc",
+    "build:site": "npm run build && node scripts/build-site.mjs",
+    "serve": "node scripts/serve.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

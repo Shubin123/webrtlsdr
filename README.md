@@ -10,6 +10,31 @@ It provides low-level access to the RTL-SDR stick, and also uses the [Signals li
 
 This library powers Radio Receiver, my browser-based SDR application, which you can try at [radio.ea1iti.es](https://radio.ea1iti.es).
 
+## Web app (offline, plug and play)
+
+This fork includes a complete receiver app in [`app/`](app/) that is published as a static site on GitHub Pages: **https://shubin123.github.io/webrtlsdr/**
+
+- **Plug and play:** press *Connect SDR* once to grant the page access to your stick (browsers require this the first time). After that the stick is picked up automatically whenever it is plugged in, and playback starts on its own (can be turned off under *Advanced*). Unplugging stops cleanly.
+- **Features:** WBFM (stereo), NBFM, AM, USB, LSB and CW; live spectrum and waterfall with click/drag/scroll tuning; bandwidth, squelch, volume, RF gain/AGC, sample rate, PPM correction, direct sampling (HF), bias tee, FFT size; bookmarks with JSON import/export; recording audio to a local file; signal and audio meters; keyboard shortcuts; a simulated SDR to try it without hardware.
+- **No external connections:** every file is served from the same origin; nothing is loaded from a CDN, and there are no fonts, analytics or trackers. A Content-Security-Policy with `connect-src 'none'` makes the browser block any network request the page might try to make. Settings stay in the browser's local storage. A service worker caches the app so it works fully offline after the first visit.
+- **Build-time check:** `scripts/build-site.mjs` fails the build if any shipped file contains code that could reach the network (`fetch`, XHR, WebSocket, beacons, dynamic imports, external URLs, …). The only exception is the service worker, which serves the app's own files and refuses every cross-origin request.
+
+### Run it locally
+
+```shell
+npm ci --ignore-scripts
+npm run build:site   # builds site/
+npm run serve        # http://localhost:8080 (WebUSB works on localhost)
+```
+
+You can copy the `site/` folder to any static web server. WebUSB requires HTTPS or `localhost`.
+
+### Troubleshooting
+
+- **Linux:** unload the DVB-T driver (`sudo rmmod dvb_usb_rtl28xxu`, or blacklist it) and add a udev rule so your user can access the stick.
+- **Windows:** install the WinUSB driver for the stick using [Zadig](https://zadig.akeo.ie/).
+- **macOS / Android:** works out of the box with a Chromium-based browser (Android needs a USB OTG adapter).
+
 ## Compatible hardware and software
 
 Web RTL-SDR was written to work with an RTL-2832U-based DVB-T (European digital TV) USB receiver with a R820/828/860 tuner chip. Support for other chips may be added as required.

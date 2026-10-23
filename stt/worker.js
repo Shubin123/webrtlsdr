@@ -79,6 +79,11 @@ async function load(base, model) {
 
 async function transcribe({ id, audio, partial }) {
   if (!transcriber) throw new Error("Model not loaded");
+  // The model needs at least a fraction of a second of audio.
+  if (audio.length < 4000) {
+    self.postMessage({ type: "result", id, partial, text: "", seconds: 0, elapsed: 0 });
+    return;
+  }
   const seconds = audio.length / 16000;
   const started = performance.now();
   // Moonshine needs about 6.5 tokens per second of speech at most; capping the

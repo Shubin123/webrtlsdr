@@ -19,7 +19,8 @@ const FRAMES_PER_SECOND = OUT_RATE / FRAME;
 const PREROLL_FRAMES = 15;
 const HANGOVER_FRAMES = 60; // 1.2 s of quiet ends an utterance; live text covers the wait.
 const MIN_SPEECH_FRAMES = 15;
-const MAX_FRAMES = 12 * FRAMES_PER_SECOND;
+const MAX_FRAMES = 15 * FRAMES_PER_SECOND;
+const MIN_SEND_FRAMES = FRAMES_PER_SECOND / 2;
 const CUT_SEARCH_FRAMES = 3 * FRAMES_PER_SECOND;
 const FLOOR_FRAMES = 5 * FRAMES_PER_SECOND;
 const PARTIAL_INTERVAL_FRAMES = FRAMES_PER_SECOND;
@@ -146,7 +147,7 @@ class Segmenter {
   /** Ends the utterance after a pause. */
   finish() {
     const keep = this.frames.length - Math.max(0, this.silentFrames - 10);
-    const enough = this.speechFrames >= MIN_SPEECH_FRAMES;
+    const enough = this.speechFrames >= MIN_SPEECH_FRAMES && keep >= MIN_SEND_FRAMES;
     const frames = this.frames.slice(0, keep);
     const segId = this.segId;
     this.active = false;
@@ -166,6 +167,7 @@ class Segmenter {
     this.frames = this.frames.slice(cut + 1);
     this.frameDb = this.frameDb.slice(cut + 1);
     this.speechFrames = this.frames.length;
+    this.silentFrames = 0;
     this.segId++;
     this.onSegment(toAudio(head), segId, false);
   }
@@ -359,8 +361,10 @@ export class Transcriber extends EventTarget {
         this.pending.delete(msg.id);
         this.busy = false;
         if (job && !job.partial) {
-          const speed = msg.seconds / Math.max(msg.elapsed, 1e-3);
-          this.speed = this.speed === undefined ? speed : 0.7 * this.speed + 0.3 * speed;
+          if (msg.seconds > 0) {
+            const speed = msg.seconds / Math.max(msg.elapsed, 1e-3);
+            this.speed = this.speed === undefined ? speed : 0.7 * this.speed + 0.3 * speed;
+          }
           const text = cleanText(msg.text);
           if (text) {
             this.dispatchEvent(

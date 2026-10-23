@@ -40,7 +40,8 @@ function configure(base) {
   onnx.wasm.wasmPaths = {
     wasm: new URL("stt/ort-wasm-simd-threaded.wasm", base).href,
   };
-  // Multiple threads need cross-origin isolation, which GitHub Pages lacks.
+  // Multiple threads need cross-origin isolation, which GitHub Pages lacks,
+  // and only make transcription about 25% faster.
   onnx.wasm.numThreads = 1;
   onnx.wasm.proxy = false;
 }
@@ -72,11 +73,11 @@ async function load(base, model) {
   });
   loadedModel = model;
   // Warm up so the first real transcription is fast.
-  await transcriber(new Float32Array(16000), { max_new_tokens: 4 });
+  await transcriber(new Float32Array(8000), { max_new_tokens: 2 });
   self.postMessage({ type: "ready", model });
 }
 
-async function transcribe({ id, audio }) {
+async function transcribe({ id, audio, partial }) {
   if (!transcriber) throw new Error("Model not loaded");
   const seconds = audio.length / 16000;
   const started = performance.now();
@@ -88,6 +89,7 @@ async function transcribe({ id, audio }) {
   self.postMessage({
     type: "result",
     id,
+    partial,
     text: out.text,
     seconds,
     elapsed: (performance.now() - started) / 1000,

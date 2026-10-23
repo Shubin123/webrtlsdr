@@ -3,7 +3,9 @@
 // Turns demodulated audio into text with a speech recognition model that runs
 // entirely in the browser. Audio at 48 kHz is filtered and decimated to
 // 16 kHz, split into utterances with an adaptive energy detector, and sent to
-// a worker running Moonshine (see stt/worker.js).
+// a worker running Moonshine (see stt/worker.js). While someone is talking,
+// the utterance so far is transcribed whenever the worker is idle, so text
+// appears live; the final text replaces it when the utterance ends.
 
 export const MODELS = {
   "moonshine-base": { label: "Moonshine Base", size: "66 MB" },
@@ -13,17 +15,21 @@ export const MODELS = {
 const IN_RATE = 48000;
 const OUT_RATE = 16000;
 const FRAME = 320; // 20 ms at 16 kHz.
+const FRAMES_PER_SECOND = OUT_RATE / FRAME;
 const PREROLL_FRAMES = 15;
-const HANGOVER_FRAMES = 40;
+const HANGOVER_FRAMES = 60; // 1.2 s of quiet ends an utterance; live text covers the wait.
 const MIN_SPEECH_FRAMES = 15;
-const MAX_FRAMES = 1000; // 20 seconds.
+const MAX_FRAMES = 12 * FRAMES_PER_SECOND;
+const CUT_SEARCH_FRAMES = 3 * FRAMES_PER_SECOND;
+const FLOOR_FRAMES = 5 * FRAMES_PER_SECOND;
+const PARTIAL_INTERVAL_FRAMES = FRAMES_PER_SECOND;
 const MAX_QUEUE = 4;
-const FLOOR_FRAMES = 250; // The noise floor is the quietest frame in 5 seconds.
+const TARGET_RMS = 0.1;
 
 /** Low-pass filter (7 kHz) and decimation by 3, from 48 kHz to 16 kHz. */
 class Decimator {
   constructor() {
-    const taps = 63;
+    const taps = 48;
     const cutoff = 7000 / IN_RATE;
     this.coefs = new Float32Array(taps);
     let sum = 0;
@@ -35,28 +41,33 @@ class Decimator {
       sum += this.coefs[i];
     }
     for (let i = 0; i < taps; ++i) this.coefs[i] /= sum;
-    this.history = new Float32Array(taps);
+    // The history is stored twice so the filter can read it without wrapping.
+    this.history = new Float32Array(taps * 2);
     this.pos = 0;
     this.phase = 0;
+    this.out = new Float32Array(0);
   }
 
-  /** Processes mono samples and returns the decimated output. */
-  process(input) {
+  /** Processes left and right channels and returns mono output at 16 kHz. */
+  process(left, right) {
     const taps = this.coefs.length;
-    const out = new Float32Array(Math.ceil(input.length / 3) + 1);
+    const coefs = this.coefs;
+    const history = this.history;
+    const size = Math.ceil(left.length / 3) + 1;
+    if (this.out.length < size) this.out = new Float32Array(size);
     let n = 0;
-    for (let i = 0; i < input.length; ++i) {
-      this.history[this.pos] = input[i];
-      this.pos = (this.pos + 1) % taps;
+    for (let i = 0; i < left.length; ++i) {
+      const v = (left[i] + right[i]) * 0.5;
+      history[this.pos] = v;
+      history[this.pos + taps] = v;
+      if (++this.pos === taps) this.pos = 0;
       if (++this.phase < 3) continue;
       this.phase = 0;
       let acc = 0;
-      for (let k = 0; k < taps; ++k) {
-        acc += this.coefs[k] * this.history[(this.pos + k) % taps];
-      }
-      out[n++] = acc;
+      for (let k = 0, j = this.pos; k < taps; ++k, ++j) acc += coefs[k] * history[j];
+      this.out[n++] = acc;
     }
-    return out.subarray(0, n);
+    return this.out.subarray(0, n);
   }
 }
 
@@ -68,11 +79,8 @@ class Segmenter {
     this.framePos = 0;
     this.levels = new Float32Array(FLOOR_FRAMES).fill(-120);
     this.levelPos = 0;
-    this.preroll = [];
-    this.active = false;
-    this.frames = [];
-    this.speechFrames = 0;
-    this.silentFrames = 0;
+    this.segId = 0;
+    this.reset();
   }
 
   reset() {
@@ -80,6 +88,9 @@ class Segmenter {
     this.preroll = [];
     this.active = false;
     this.frames = [];
+    this.frameDb = [];
+    this.speechFrames = 0;
+    this.silentFrames = 0;
   }
 
   push(samples) {
@@ -97,9 +108,9 @@ class Segmenter {
     for (let i = 0; i < frame.length; ++i) sum += frame[i] * frame[i];
     const db = 10 * Math.log10(sum / frame.length + 1e-12);
     this.levels[this.levelPos] = db;
-    this.levelPos = (this.levelPos + 1) % FLOOR_FRAMES;
+    if (++this.levelPos === FLOOR_FRAMES) this.levelPos = 0;
     let floor = Infinity;
-    for (let i = 0; i < FLOOR_FRAMES; ++i) floor = Math.min(floor, this.levels[i]);
+    for (let i = 0; i < FLOOR_FRAMES; ++i) if (this.levels[i] < floor) floor = this.levels[i];
     const speech = db > -60 && db > Math.max(floor, -90) + 9;
 
     if (!this.active) {
@@ -107,7 +118,9 @@ class Segmenter {
       if (this.preroll.length > PREROLL_FRAMES) this.preroll.shift();
       if (speech) {
         this.active = true;
+        this.segId++;
         this.frames = [...this.preroll];
+        this.frameDb = this.frames.map(() => -120);
         this.preroll = [];
         this.speechFrames = 1;
         this.silentFrames = 0;
@@ -116,43 +129,110 @@ class Segmenter {
     }
 
     this.frames.push(frame);
+    this.frameDb.push(db);
     if (speech) {
       this.speechFrames++;
       this.silentFrames = 0;
     } else {
       this.silentFrames++;
     }
-    if (this.silentFrames >= HANGOVER_FRAMES || this.frames.length >= MAX_FRAMES) {
+    if (this.silentFrames >= HANGOVER_FRAMES) {
       this.finish();
+    } else if (this.frames.length >= MAX_FRAMES) {
+      this.split();
     }
   }
 
+  /** Ends the utterance after a pause. */
   finish() {
     const keep = this.frames.length - Math.max(0, this.silentFrames - 10);
-    const frames = this.frames.slice(0, keep);
     const enough = this.speechFrames >= MIN_SPEECH_FRAMES;
+    const frames = this.frames.slice(0, keep);
+    const segId = this.segId;
     this.active = false;
     this.frames = [];
-    if (!enough) return;
-    const audio = new Float32Array(frames.length * FRAME);
-    frames.forEach((f, i) => audio.set(f, i * FRAME));
-    // Normalize the level; quiet audio transcribes poorly.
-    let peak = 0;
-    for (let i = 0; i < audio.length; ++i) peak = Math.max(peak, Math.abs(audio[i]));
-    if (peak > 0) {
-      const gain = Math.min(0.9 / peak, 30);
-      for (let i = 0; i < audio.length; ++i) audio[i] *= gain;
+    this.frameDb = [];
+    if (enough) this.onSegment(toAudio(frames), segId, true);
+  }
+
+  /** Cuts continuous speech at the quietest moment of the last few seconds. */
+  split() {
+    let cut = this.frames.length - 1;
+    for (let i = this.frames.length - CUT_SEARCH_FRAMES; i < this.frames.length; ++i) {
+      if (this.frameDb[i] < this.frameDb[cut]) cut = i;
     }
-    this.onSegment(audio);
+    const head = this.frames.slice(0, cut + 1);
+    const segId = this.segId;
+    this.frames = this.frames.slice(cut + 1);
+    this.frameDb = this.frameDb.slice(cut + 1);
+    this.speechFrames = this.frames.length;
+    this.segId++;
+    this.onSegment(toAudio(head), segId, false);
+  }
+
+  /** The current utterance so far, for live results. */
+  current() {
+    return this.active ? toAudio(this.frames) : undefined;
   }
 }
 
-/** Removes the repetition small models sometimes produce on noisy audio. */
-function cleanText(text) {
-  let t = String(text || "").replace(/\s+/g, " ").trim();
-  t = t.replace(/\b(\w+(?:\s+\w+){0,3})(?:[\s,.]+\1\b){2,}/gi, "$1");
-  if (!/[a-z0-9]/i.test(t)) return "";
-  return t;
+/** Joins frames and normalizes the level, which helps recognition. */
+function toAudio(frames) {
+  const audio = new Float32Array(frames.length * FRAME);
+  frames.forEach((f, i) => audio.set(f, i * FRAME));
+  // Normalize by the loudness of the louder half of the audio rather than
+  // the peak, so a single click doesn't make the speech too quiet.
+  const energies = frames.map((f) => {
+    let s = 0;
+    for (let i = 0; i < f.length; ++i) s += f[i] * f[i];
+    return s / f.length;
+  });
+  energies.sort((a, b) => b - a);
+  const loud = energies.slice(0, Math.max(1, energies.length >> 1));
+  const rms = Math.sqrt(loud.reduce((a, b) => a + b, 0) / loud.length);
+  if (rms > 0) {
+    const gain = Math.max(0.1, Math.min(TARGET_RMS / rms, 50));
+    for (let i = 0; i < audio.length; ++i) {
+      audio[i] = Math.max(-1, Math.min(1, audio[i] * gain));
+    }
+  }
+  return audio;
+}
+
+/** Removes the repetition small models sometimes produce on difficult audio. */
+export function cleanText(text) {
+  let words = String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const norm = (w) => w.toLowerCase().replace(/[^a-z0-9']/g, "");
+  for (let n = Math.min(12, words.length >> 1); n >= 1; --n) {
+    for (let i = 0; i + 2 * n <= words.length; ++i) {
+      let same = true;
+      for (let k = 0; k < n && same; ++k) same = norm(words[i + k]) === norm(words[i + n + k]);
+      if (!same) continue;
+      // Drop every following copy, and a trailing partial copy.
+      let j = i + n;
+      while (j + n <= words.length) {
+        let again = true;
+        for (let k = 0; k < n && again; ++k) again = norm(words[i + k]) === norm(words[j + k]);
+        if (!again) break;
+        j += n;
+      }
+      // Short repeats ("no, no") are often real speech.
+      if (n < 3 && j - i < 3 * n) continue;
+      let tail = words.length - j;
+      if (tail < n) {
+        let prefix = true;
+        for (let k = 0; k < tail && prefix; ++k) {
+          const a = norm(words[i + k]);
+          const b = norm(words[j + k]);
+          prefix = k === tail - 1 ? a.startsWith(b) : a === b;
+        }
+        if (prefix) j = words.length;
+      }
+      words.splice(i + n, j - (i + n));
+    }
+  }
+  const t = words.join(" ");
+  return /[a-z0-9]/i.test(t) ? t : "";
 }
 
 /**
@@ -160,6 +240,8 @@ function cleanText(text) {
  *
  * Events:
  * - "status": detail is { state, message, progress? }
+ * - "activity": detail is { speech } when speech starts or stops
+ * - "partial": detail is { text } with live text for the current utterance
  * - "transcript": detail is { text, seconds, elapsed, context }
  */
 export class Transcriber extends EventTarget {
@@ -177,16 +259,27 @@ export class Transcriber extends EventTarget {
     this.pending = new Map();
     this.progress = new Map();
     this.loadFraction = 0;
+    this.speed = undefined;
+    this.dropped = 0;
+    this.lastPartialFrames = 0;
+    this.partialSeg = 0;
+    this.wasActive = false;
     this.decimator = new Decimator();
-    this.segmenter = new Segmenter((audio) => this.enqueue(audio));
+    this.segmenter = new Segmenter((audio, segId, ended) =>
+      this.enqueue(audio, segId, ended),
+    );
   }
 
   /** Feeds demodulated 48 kHz stereo audio. */
   push(left, right) {
     if (!this.enabled) return;
-    const mono = new Float32Array(left.length);
-    for (let i = 0; i < left.length; ++i) mono[i] = (left[i] + right[i]) / 2;
-    this.segmenter.push(this.decimator.process(mono));
+    this.segmenter.push(this.decimator.process(left, right));
+    const active = this.segmenter.active;
+    if (active !== this.wasActive) {
+      this.wasActive = active;
+      this.dispatchEvent(new CustomEvent("activity", { detail: { speech: active } }));
+    }
+    this.maybePartial();
   }
 
   setEnabled(enabled) {
@@ -196,6 +289,7 @@ export class Transcriber extends EventTarget {
     } else {
       this.segmenter.reset();
       this.queue = [];
+      this.wasActive = false;
       this.status("off", "Off");
     }
   }
@@ -204,6 +298,7 @@ export class Transcriber extends EventTarget {
     if (!(model in MODELS) || model === this.model) return;
     this.model = model;
     this.ready = false;
+    this.speed = undefined;
     if (this.enabled) this.load();
   }
 
@@ -227,6 +322,7 @@ export class Transcriber extends EventTarget {
     const worker = new Worker(url, { type: "module" });
     worker.addEventListener("message", (e) => this.onMessage(e.data));
     worker.addEventListener("error", (e) => {
+      this.busy = false;
       this.status("error", `Speech model failed to start: ${e.message || "unknown error"}`);
     });
     return worker;
@@ -244,30 +340,40 @@ export class Transcriber extends EventTarget {
         }
         // Files report their sizes as they start, so only move forward.
         this.loadFraction = Math.max(this.loadFraction, total > 0 ? loaded / total : 0);
-        const fraction = this.loadFraction;
         const info = MODELS[this.model];
-        this.status("loading", `Loading ${info.label} (${info.size})… ${Math.round(fraction * 100)}%`, fraction);
+        this.status(
+          "loading",
+          `Loading ${info.label} (${info.size})… ${Math.round(this.loadFraction * 100)}%`,
+          this.loadFraction,
+        );
         break;
       }
       case "ready":
         if (msg.model !== this.model) return;
         this.ready = true;
-        this.status("listening", `${MODELS[this.model].label} ready — listening`);
+        this.listening();
         this.drain();
         break;
       case "result": {
-        const context = this.pending.get(msg.id);
+        const job = this.pending.get(msg.id);
         this.pending.delete(msg.id);
         this.busy = false;
-        const text = cleanText(msg.text);
-        if (text) {
-          this.dispatchEvent(
-            new CustomEvent("transcript", {
-              detail: { text, seconds: msg.seconds, elapsed: msg.elapsed, context },
-            }),
-          );
+        if (job && !job.partial) {
+          const speed = msg.seconds / Math.max(msg.elapsed, 1e-3);
+          this.speed = this.speed === undefined ? speed : 0.7 * this.speed + 0.3 * speed;
+          const text = cleanText(msg.text);
+          if (text) {
+            this.dispatchEvent(
+              new CustomEvent("transcript", {
+                detail: { text, seconds: msg.seconds, elapsed: msg.elapsed, context: job.context },
+              }),
+            );
+          }
+          this.partial("");
+        } else if (job && job.segId === this.segmenter.segId && this.segmenter.active) {
+          this.partial(cleanText(msg.text));
         }
-        if (this.enabled) this.status("listening", `${MODELS[this.model].label} ready — listening`);
+        if (this.enabled && this.ready) this.listening();
         this.drain();
         break;
       }
@@ -284,21 +390,55 @@ export class Transcriber extends EventTarget {
     }
   }
 
-  enqueue(audio) {
-    this.queue.push({ audio, context: this.getContext() });
+  enqueue(audio, segId, ended) {
+    this.queue.push({ audio, segId, ended, context: this.getContext() });
     // If the computer cannot keep up, skip the oldest utterances.
-    while (this.queue.length > MAX_QUEUE) this.queue.shift();
+    while (this.queue.length > MAX_QUEUE) {
+      this.queue.shift();
+      this.dropped++;
+    }
+    this.lastPartialFrames = 0;
     this.drain();
+  }
+
+  /** Transcribes the utterance in progress if the worker has nothing else to do. */
+  maybePartial() {
+    if (!this.ready || this.busy || this.queue.length > 0) return;
+    const seg = this.segmenter;
+    if (!seg.active || seg.frames.length < FRAMES_PER_SECOND) return;
+    if (this.partialSeg === seg.segId && seg.frames.length - this.lastPartialFrames < PARTIAL_INTERVAL_FRAMES) {
+      return;
+    }
+    this.partialSeg = seg.segId;
+    this.lastPartialFrames = seg.frames.length;
+    this.send({ audio: seg.current(), segId: seg.segId, partial: true });
   }
 
   drain() {
     if (!this.ready || this.busy || this.queue.length === 0 || !this.enabled) return;
-    const { audio, context } = this.queue.shift();
+    this.send(this.queue.shift());
+  }
+
+  send(job) {
     const id = this.nextId++;
-    this.pending.set(id, context);
+    this.pending.set(id, job);
     this.busy = true;
-    this.status("working", "Transcribing…");
-    this.worker.postMessage({ type: "transcribe", id, audio }, [audio.buffer]);
+    const { audio } = job;
+    this.worker.postMessage(
+      { type: "transcribe", id, audio, partial: !!job.partial },
+      [audio.buffer],
+    );
+  }
+
+  partial(text) {
+    this.dispatchEvent(new CustomEvent("partial", { detail: { text } }));
+  }
+
+  listening() {
+    let message = `${MODELS[this.model].label} ready — listening`;
+    if (this.speed !== undefined) message += ` · ${this.speed.toFixed(this.speed < 10 ? 1 : 0)}× real time`;
+    if (this.dropped > 0) message += ` · skipped ${this.dropped} (computer too slow, try Tiny)`;
+    this.status("listening", message);
   }
 
   status(state, message, progress) {

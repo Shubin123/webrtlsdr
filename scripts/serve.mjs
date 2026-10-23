@@ -19,6 +19,7 @@ const types = {
   ".txt": "text/plain; charset=utf-8",
   ".wasm": "application/wasm",
   ".onnx": "application/octet-stream",
+  ".wav": "audio/wav",
 };
 
 http

@@ -107,6 +107,7 @@
         <div class="transcript" id="transcript" hidden>
           <div class="transcript-head">
             <strong>Transcript</strong>
+            <span id="sttActivity" class="stt-activity" title="Speech detected">● speech</span>
             <span id="sttStatus" class="stt-status" data-state="off"></span>
             <div class="meter stt-progress" id="sttProgress" hidden>
               <div id="sttProgressBar"></div>
@@ -117,7 +118,11 @@
               <button id="clearTranscript" type="button">Clear</button>
             </div>
           </div>
-          <ol id="transcriptList" class="transcript-list"></ol>
+          <ol id="transcriptList" class="transcript-list">
+            <li id="transcriptLive" class="live" hidden>
+              <span class="meta">live</span><span class="text" id="transcriptLiveText"></span>
+            </li>
+          </ol>
         </div>
       </section>
 
@@ -171,7 +176,9 @@
             <small class="hint">
               English only. The model downloads from this site the first time
               you turn this on, then stays on this device for offline use.
-              Works best with squelch set so only speech gets through.
+              Works best with squelch set so only speech gets through. To
+              try it without hardware, turn on the simulated SDR and pick the
+              “2 m calling” or “Aviation emergency” bookmark.
             </small>
           </div>
           <div class="field">

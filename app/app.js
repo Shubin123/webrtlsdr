@@ -100,9 +100,55 @@ class SwitchableProvider {
     this.fake = new FakeRtlDeviceProvider(simulatedSignals());
   }
 
-  get() {
-    return settings.simulated ? this.fake.get() : this.real.get();
+  async get() {
+    if (!settings.simulated) return this.real.get();
+    await loadSimulatedSpeech();
+    return this.fake.get();
   }
+}
+
+/** A recording of speech (16 kHz mono) that the simulated stations broadcast. */
+let simulatedSpeech = new Float32Array(0);
+
+async function loadSimulatedSpeech() {
+  if (simulatedSpeech.length > 0) return;
+  try {
+    const wav = new DataView(await (await fetch("sim/jfk.wav")).arrayBuffer());
+    // Find the "data" chunk of the 16-bit PCM WAV file.
+    let pos = 12;
+    while (pos + 8 <= wav.byteLength) {
+      const id = String.fromCharCode(
+        wav.getUint8(pos), wav.getUint8(pos + 1), wav.getUint8(pos + 2), wav.getUint8(pos + 3),
+      );
+      const size = wav.getUint32(pos + 4, true);
+      if (id === "data") {
+        const samples = new Float32Array(size >> 1);
+        for (let i = 0; i < samples.length; ++i) {
+          samples[i] = wav.getInt16(pos + 8 + 2 * i, true) / 32768;
+        }
+        simulatedSpeech = samples;
+        return;
+      }
+      pos += 8 + size + (size & 1);
+    }
+  } catch {
+    // Without the recording, the speech stations are silent.
+  }
+}
+
+/** A generator that repeats the speech recording, with a pause after each repetition. */
+function speech(pauseSeconds) {
+  return (sample, rate, _centerFreq, I, Q) => {
+    const audio = simulatedSpeech;
+    const period = audio.length + pauseSeconds * 16000;
+    for (let i = 0; i < I.length; ++i) {
+      const t = ((sample + i) / rate) * 16000;
+      const k = Math.floor(t) % period;
+      const f = t - Math.floor(t);
+      I[i] = k + 1 < audio.length ? audio[k] * (1 - f) + audio[k + 1] * f : 0;
+    }
+    Q.fill(0);
+  };
 }
 
 /** Signals heard by the simulated SDR. */
@@ -110,10 +156,10 @@ function simulatedSignals() {
   return sum(
     modulateFM(88.5e6, 75000, 0.1, wbfmSignal(tone(600, 0.5), tone(400, 0.5))),
     modulateFM(88.1e6, 75000, 0.05, wbfmSignal(tone(1000, 0.5))),
-    modulateFM(88.9e6, 75000, 0.03, wbfmSignal(tone(300, 0.3), tone(700, 0.3))),
-    modulateAM(121.5e6, 0.1, tone(900, 0.5)),
+    modulateFM(88.9e6, 75000, 0.03, wbfmSignal(speech(2))),
+    modulateAM(121.5e6, 0.1, speech(4)),
     modulateFM(162.55e6, 5000, 0.1, tone(1050, 0.5)),
-    modulateFM(146.52e6, 5000, 0.05, tone(800, 0.5)),
+    modulateFM(146.52e6, 5000, 0.05, speech(3)),
     modulateAM(810e3, 0.1, tone(900, 0.5)),
     tone(14225750, 0.01),
     noise(0.02),
@@ -319,6 +365,9 @@ for (const id of [
   "sttDeleteButton",
   "transcript",
   "sttStatus",
+  "sttActivity",
+  "transcriptLive",
+  "transcriptLiveText",
   "sttProgress",
   "sttProgressBar",
   "transcriptList",
@@ -840,6 +889,14 @@ function initSpeechToText() {
     if (state === "error") log(message, true);
   });
   transcriber.addEventListener("transcript", (e) => addTranscript(e.detail));
+  transcriber.addEventListener("partial", (e) => {
+    el.transcriptLiveText.textContent = e.detail.text;
+    el.transcriptLive.hidden = !e.detail.text;
+    if (e.detail.text) el.transcriptList.scrollTop = el.transcriptList.scrollHeight;
+  });
+  transcriber.addEventListener("activity", (e) => {
+    el.sttActivity.classList.toggle("on", e.detail.speech);
+  });
 
   el.sttBox.addEventListener("change", () => {
     settings.stt = el.sttBox.checked;
@@ -882,7 +939,7 @@ function initSpeechToText() {
   });
   el.clearTranscript.addEventListener("click", () => {
     transcript.length = 0;
-    el.transcriptList.replaceChildren();
+    el.transcriptList.replaceChildren(el.transcriptLive);
   });
   applySpeechToText();
 }
@@ -906,8 +963,8 @@ function addTranscript({ text, seconds, context }) {
   const atBottom =
     el.transcriptList.scrollTop + el.transcriptList.clientHeight >=
     el.transcriptList.scrollHeight - 8;
-  el.transcriptList.append(li);
-  while (el.transcriptList.children.length > 500) {
+  el.transcriptList.insertBefore(li, el.transcriptLive);
+  while (transcript.length > 500) {
     el.transcriptList.firstChild.remove();
     transcript.shift();
   }

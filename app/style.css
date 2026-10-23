@@ -419,6 +419,27 @@ input[type="range"] {
   color: var(--bad);
 }
 
+.stt-activity {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  opacity: 0.35;
+}
+
+.stt-activity.on {
+  color: var(--good);
+  opacity: 1;
+}
+
+.transcript-list li.live .text {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.transcript-list li[hidden] {
+  display: none;
+}
+
 .stt-progress {
   width: 120px;
 }

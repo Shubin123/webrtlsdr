@@ -174,6 +174,8 @@ for (const file of walk(out)) {
     for (const re of forbidden) {
       if (!re.test(code)) continue;
       if (rel === "sw.js" && re.source.includes("fetch")) continue;
+      // fetch() of a relative path only reaches this site.
+      if (re.source.includes("fetch") && /\bfetch\s*\(\s*["'](?![a-z]+:|\/\/)[^"']*["']\s*\)/.test(code)) continue;
       problems.push(`${rel}:${i + 1}: ${line.trim()}`);
     }
     // Absolute URLs are allowed only in comments and plain links.

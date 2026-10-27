@@ -919,3 +919,14 @@ body.doc {
 .help a {
   color: var(--accent);
 }
+
+.tx-freq { margin: 0 0 12px; }
+.tx-freq > label { display: block; margin: 0 0 4px; font-size: 12px; font-weight: 600; }
+.tx-freq-row { display: flex; align-items: center; gap: 6px; }
+.tx-panel .tx-freq-row input { flex: 1; width: auto; margin: 0; font: 700 22px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; padding: 4px 8px; }
+.tx-freq-row .unit { color: var(--muted); }
+.tx-freq-row button { padding: 6px 10px; }
+button.link { background: none; border: none; padding: 2px 0; margin-top: 4px; color: var(--accent); font-size: 12px; text-decoration: underline; }
+.tx-freq p { margin: 4px 0 0; min-height: 0; color: var(--warn); }
+.tx-freq p:empty { display: none; }
+.tx-control[data-state="on"] .tx-freq input, .tx-control[data-state="on"] .tx-freq .unit, .tx-control[data-state="on"] .tx-freq > label { color: #fff; }

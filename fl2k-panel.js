@@ -10,6 +10,7 @@ export function installFl2kPanel({ getSettings, generate }) {
   let stopping = false;
   let onAirSince = 0;
   let onAirConfig = "";
+  let onAirMhz = "";
   let onAirTimer;
   let lastError = "";
   const title = document.title;
@@ -46,7 +47,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     field("Start").textContent = { off: "Transmit", starting: "Cancel", on: "■ Stop transmitting", stopping: "Stopping…" }[state];
     document.getElementById("txBlocked").textContent = blocked;
     document.getElementById("txControl").dataset.state = state;
-    document.getElementById("txControlState").textContent = { off: "TX off", starting: "TX preparing…", on: "TRANSMITTING", stopping: "TX stopping…" }[state];
+    document.getElementById("txControlState").textContent = { off: "TX off", starting: "TX preparing…", on: `TRANSMITTING ${onAirMhz} MHz`, stopping: "TX stopping…" }[state];
     document.getElementById("txControlDetail").textContent = {
       off: lastError ? `Not transmitting. Last attempt: ${lastError}` : "Not transmitting.",
       starting: "Connecting and preparing samples. Not on air yet.",
@@ -54,7 +55,7 @@ export function installFl2kPanel({ getSettings, generate }) {
       stopping: "Stopping and closing USB…",
     }[state];
     document.getElementById("txIndicator").dataset.state = state;
-    document.getElementById("txIndicatorText").textContent = { off: "Off", starting: "Preparing", on: "ON AIR", stopping: "Stopping" }[state];
+    document.getElementById("txIndicatorText").textContent = { off: "Off", starting: "Preparing", on: `ON AIR ${onAirMhz} MHz`, stopping: "Stopping" }[state];
     document.body.dataset.tx = state;
     document.title = state === "on" ? `● TX ON AIR · ${title}` : title;
     const header = field("HeaderTx");
@@ -181,6 +182,7 @@ export function installFl2kPanel({ getSettings, generate }) {
       validateTx(config);
       status("Generating samples using the actual DAC rate… not on air yet.");
       options[field("Channel").value] = await generate(config, () => !field("Armed").checked || !driver.connected || document.hidden);
+      onAirMhz = (config.carrier / 1e6).toFixed(3);
       onAirConfig = `${config.mode} at ${(config.carrier / 1e6).toFixed(3)} MHz · ${rate} · ${field("Channel").value} DAC`;
     } else {
       options.signed = field("Encoding").value === "signed";
@@ -191,7 +193,7 @@ export function installFl2kPanel({ getSettings, generate }) {
         options[name.toLowerCase()] = new Uint8Array(await file.arrayBuffer());
       }
     }
-    if (field("Source").value === "files") onAirConfig = `raw RGB files · ${rate}`;
+    if (field("Source").value === "files") { onAirMhz = "(raw files)"; onAirConfig = `raw RGB files · ${rate}`; }
     if (!field("Armed").checked) throw new Error("TX canceled before going on air.");
     await driver.startTx(options);
   }

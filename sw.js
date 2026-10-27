@@ -5,7 +5,7 @@
 // The speech model and its runtime are large, so they are not downloaded
 // up front: they are cached the first time they are used.
 
-const BUILD_ID = "899bd13a91c3";
+const BUILD_ID = "8e66a226ba76";
 const MODELS_ID = "8cd30377d7a3";
 const FILES = [
   "./",

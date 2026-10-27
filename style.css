@@ -10,6 +10,8 @@
   --good: #3fb950;
   --warn: #d29922;
   --bad: #f85149;
+  /* Background for "transmitting"; dark enough for white text. */
+  --tx-on: #c9182a;
   --scope-bg: #05070c;
   --grid: #1e2633;
   --passband: rgba(88, 166, 255, 0.18);
@@ -31,6 +33,7 @@
     --good: #1a7f37;
     --warn: #9a6700;
     --bad: #cf222e;
+    --tx-on: #cf222e;
     color-scheme: light;
   }
 }
@@ -93,9 +96,9 @@ button.primary,
 }
 
 button.primary.active {
-  background: var(--bad);
-  border-color: var(--bad);
-  color: #fff;
+  background: var(--good);
+  border-color: var(--good);
+  color: var(--accent-text);
 }
 
 button.active {
@@ -179,6 +182,91 @@ input[type="range"] {
   background: var(--bad);
 }
 
+.status .tag,
+.tx-indicator .tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* Transmitter state. Red always and only means "transmitting". */
+
+.tx-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.tx-indicator .dot,
+.tx-control-state .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.tx-indicator[data-state="starting"],
+.tx-indicator[data-state="stopping"] {
+  color: var(--warn);
+}
+
+.tx-indicator[data-state="starting"] .dot,
+.tx-indicator[data-state="stopping"] .dot {
+  background: var(--warn);
+}
+
+.tx-indicator[data-state="on"] {
+  background: var(--tx-on);
+  color: #fff;
+  font-weight: 700;
+}
+
+.tx-indicator[data-state="on"] .dot,
+.tx-control[data-state="on"] .tx-control-state .dot {
+  background: #fff;
+  animation: tx-pulse 1s ease-in-out infinite;
+}
+
+button.tx-stop,
+button.tx-stop:hover:not(:disabled) {
+  background: var(--tx-on);
+  border-color: var(--tx-on);
+  color: #fff;
+  font-weight: 700;
+}
+
+#fl2kEmergencyStop[hidden] {
+  display: none;
+}
+
+body[data-tx="on"]::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  border: 4px solid var(--tx-on);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+@keyframes tx-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-indicator[data-state="on"] .dot,
+  .tx-control[data-state="on"] .tx-control-state .dot {
+    animation: none;
+  }
+}
+
 .actions {
   margin-left: auto;
   display: flex;
@@ -234,7 +322,22 @@ input[type="range"] {
 .fl2k-hardware { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
 .fl2k-hardware > summary { font-size: 14px; font-weight: 600; cursor: pointer; }
 .fl2k-hardware #fl2kStatus { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin: 8px 0; text-transform: none; letter-spacing: normal; }
-#fl2kEmergencyStop[hidden] { display: none; }
+.tx-control { margin: 12px 0 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+.tx-control-state { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--muted); }
+.tx-control #txControlDetail { margin: 6px 0; }
+.tx-control label.tx-option { display: flex; gap: 6px; align-items: flex-start; margin: 8px 0; font-size: 12px; }
+.tx-control label.tx-option input { margin-top: 2px; }
+.tx-control .tx-blocked { color: var(--warn); margin: 6px 0 0; }
+.tx-control .tx-blocked:empty { display: none; }
+button.tx-button { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; font-size: 15px; font-weight: 700; color: var(--bad); border: 2px solid var(--bad); background: var(--panel); }
+.tx-control[data-state="starting"], .tx-control[data-state="stopping"] { border-color: var(--warn); }
+.tx-control[data-state="starting"] .tx-control-state, .tx-control[data-state="stopping"] .tx-control-state { color: var(--warn); }
+.tx-control[data-state="starting"] .tx-control-state .dot, .tx-control[data-state="stopping"] .tx-control-state .dot { background: var(--warn); }
+.tx-control[data-state="on"] { background: var(--tx-on); border-color: var(--tx-on); color: #fff; }
+button.tx-button:hover:not(:disabled) { border-color: var(--bad); }
+.tx-control[data-state="on"] button.tx-button:hover:not(:disabled) { border-color: #fff; }
+.tx-control[data-state="on"] .tx-control-state, .tx-control[data-state="on"] p, .tx-control[data-state="on"] label { color: #fff; }
+.tx-control[data-state="on"] button.tx-button, .tx-control[data-state="starting"] button.tx-button, .tx-control[data-state="stopping"] button.tx-button { background: #fff; color: #b0141c; border-color: #fff; }
 .fl2k-hardware button { margin: 3px 0; white-space: normal; }
 .fl2k-hardware [hidden] { display: none; }
 .fl2k-hardware output { display: block; overflow-wrap: anywhere; color: var(--accent); }
@@ -270,10 +373,51 @@ input[type="range"] {
   .actions {
     margin-left: 0;
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .actions button {
     flex: 1;
+  }
+
+  /* On phones the page scrolls as a whole; the top bar, with the RX and TX
+     state and the Stop TX button, stays on screen. */
+  html,
+  body {
+    height: auto;
+  }
+
+  body {
+    min-height: 100%;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .layout {
+    flex: none;
+  }
+
+  .display {
+    order: -1;
+  }
+
+  .tx-panel,
+  .panel {
+    overflow: visible;
+  }
+
+  .tx-panel {
+    border-right: none;
+    border-top: 1px solid var(--border);
+  }
+
+  #fl2kEmergencyStop {
+    order: -1;
+    flex-basis: 100%;
   }
 }
 

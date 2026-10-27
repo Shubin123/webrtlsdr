@@ -30,17 +30,20 @@
         <img src="icon.svg" alt="" width="24" height="24" />
         <span>Web RTL-SDR</span>
       </div>
-      <div class="status" id="status" data-state="idle">
-        <span class="dot"></span><span id="statusText">Starting…</span>
+      <div class="status" id="status" data-state="idle" title="Receiver (RX)">
+        <span class="tag">RX</span><span class="dot"></span><span id="statusText">Starting…</span>
+      </div>
+      <div class="tx-indicator" id="txIndicator" data-state="off" title="Transmitter (TX)">
+        <span class="tag">TX</span><span class="dot"></span><span id="txIndicatorText">Off</span>
       </div>
       <div class="actions">
         <a class="button" href="capabilities.html">Capabilities</a>
         <button id="connectButton" class="secondary" type="button">
           Connect SDR
         </button>
-        <button id="playButton" class="primary" type="button">Play</button>
+        <button id="playButton" class="primary" type="button">Play RX</button>
         <button id="recordButton" type="button" disabled>Record</button>
-        <button id="fl2kEmergencyStop" class="primary active" type="button" hidden>Stop FL2K</button>
+        <button id="fl2kEmergencyStop" class="tx-stop" type="button" hidden>■ Stop TX</button>
       </div>
     </header>
 
@@ -52,7 +55,15 @@
     <main class="layout">
       <aside class="tx-panel" aria-labelledby="txTitle">
         <h2 id="txTitle">TX · Modulation</h2>
-        <p>FL2K waveform studio</p>
+        <p>FL2K waveform studio. Transmitting is separate from listening (RX) and is always off until you press Transmit.</p>
+        <section class="tx-control" id="txControl" data-state="off" aria-label="Transmitter">
+          <div class="tx-control-state" role="status" aria-live="assertive"><span class="dot"></span><span id="txControlState">TX off</span></div>
+          <p id="txControlDetail">Not transmitting.</p>
+          <label class="tx-option"><input id="fl2kArmed" type="checkbox" /> My setup is authorized, filtered and attenuated (dummy load or cable).</label>
+          <label class="tx-option"><input id="fl2kRepeat" type="checkbox" /> Keep transmitting until I press Stop</label>
+          <button id="fl2kStart" type="button" class="tx-button" disabled>Transmit</button>
+          <p id="txBlocked" class="tx-blocked"></p>
+        </section>
         <details class="fl2k-hardware">
           <summary>FL2K hardware · WebUSB + Wasm<span id="fl2kStatus" role="status">Checking authorized USB devices…</span></summary>
           <p id="fl2kCompatibility" class="tx-warning" role="status"></p>
@@ -73,11 +84,8 @@
             <p>Independent DAC streams, equal sample counts, max 32 MB each. Unused DACs are held at midpoint. Not interleaved IQ or WAV.</p>
           </div>
           <label>USB queue depth<select id="fl2kQueue"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
-          <label><input id="fl2kRepeat" type="checkbox" /> Repeat until stopped</label>
-          <label><input id="fl2kArmed" type="checkbox" /> I have an authorized, filtered/attenuated bench setup and intend to transmit.</label>
-          <button id="fl2kStart" type="button" class="primary" disabled>Start hardware TX</button>
-          <button id="fl2kStop" type="button" disabled>Stop TX / disconnect</button>
-          <p>Experimental path for adapters with accessible interfaces only. The tested stock FL2000 is blocked by its Audio/Video interface class. Stop closes USB; reconnect before another TX. Browser/USB scheduling can cause gaps. Unplug to guarantee RF output is removed.</p>
+          <button id="fl2kStop" type="button" disabled>Stop TX and disconnect</button>
+          <p>Experimental path for adapters with accessible interfaces only. The tested stock FL2000 is blocked by its Audio/Video interface class. Transmit connects and applies the DAC rate for you; stopping closes USB. Browser/USB scheduling can cause gaps. Unplug to guarantee RF output is removed.</p>
           <details>
             <summary>Advanced registers / I²C</summary>
             <p>Expert controls, available only with TX stopped. Writes can change device operation. They are not a CC1101 SPI interface.</p>
@@ -114,7 +122,7 @@
         <p id="txStatus" role="status">Preview only — no RF output.</p>
         <p>Native hardware TX command (after export):</p>
         <code id="txCommand"></code>
-        <p>Export does not transmit. For browser TX, connect and apply the DAC rate above, then explicitly start hardware TX. The generated waveform uses the actual applied rate. Native CLI playback is optional; stop it with Ctrl+C, not the browser's Stop button.</p>
+        <p>Export does not transmit. Browser TX happens only through the Transmit button above, using the actual applied DAC rate. Native CLI playback is separate; stop it with Ctrl+C, not the browser's Stop TX button.</p>
         <p>Driver source: <code>drivers/osmo-fl2k</code> in the repository. Build instructions are in the README.</p>
         <p class="tx-warning">Use a dummy load, attenuation and suitable output filtering. Transmit only where authorized. RTL-SDR is receive-only; TX requires an FL2000 adapter.</p>
       </aside>
@@ -377,7 +385,7 @@
               Zadig.
             </p>
             <p>
-              <b>Shortcuts:</b> <kbd>Space</kbd> play/stop, <kbd>←</kbd>
+              <b>Shortcuts:</b> <kbd>Space</kbd> play/stop RX (never transmits), <kbd>←</kbd>
               <kbd>→</kbd> tune by step, <kbd>Shift</kbd>+arrows ×10.
             </p>
             <p>

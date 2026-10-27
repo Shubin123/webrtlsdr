@@ -5,8 +5,59 @@ export function installFl2kPanel({ getSettings, generate }) {
   const field = (name) => document.getElementById(`fl2k${name}`);
   const driver = new Fl2kDevice();
   let busy = false;
+  // Transmitting is off unless the user has just pressed Transmit.
+  let starting = false;
+  let stopping = false;
+  let onAirSince = 0;
+  let onAirConfig = "";
+  let onAirTimer;
+  let lastError = "";
+  const title = document.title;
   const idleButtons = ["Rate", "ReadRegister", "WriteRegister", "ReadI2c", "WriteI2c"];
   const status = (message) => { field("Status").textContent = message; };
+  const selectedDevice = () => driver.devices[Number(field("Devices").value)];
+  function txState() {
+    if (stopping) return "stopping";
+    if (driver.running) return "on";
+    if (starting) return "starting";
+    return "off";
+  }
+  function blockedReason(valid) {
+    if (!driver.usb) return "Transmit needs WebUSB, which this browser does not have.";
+    if (busy) return "Busy with another FL2K action…";
+    if (!driver.connected) {
+      const device = selectedDevice();
+      if (!device) return "Connect an FL2K adapter under FL2K hardware below to enable Transmit.";
+      if (!inspectFl2k(device).supported) return "This FL2K adapter cannot be used from a browser (protected USB class). Use Export FL2K TX samples and native fl2k_file instead.";
+    }
+    if (field("Source").value === "files" && !["Red", "Green", "Blue"].some((name) => field(name).files.length)) return "Choose at least one raw sample file below.";
+    if (!valid) return "Fix the waveform settings below before transmitting.";
+    if (!field("Armed").checked) return "Tick the setup confirmation above to enable Transmit.";
+    return "";
+  }
+  function refreshTx(valid) {
+    const state = txState();
+    const blocked = state === "off" ? blockedReason(valid) : "";
+    field("Start").disabled = state === "stopping" || Boolean(blocked);
+    field("Start").textContent = { off: "Transmit", starting: "Cancel", on: "■ Stop transmitting", stopping: "Stopping…" }[state];
+    document.getElementById("txBlocked").textContent = blocked;
+    document.getElementById("txControl").dataset.state = state;
+    document.getElementById("txControlState").textContent = { off: "TX off", starting: "TX preparing…", on: "TRANSMITTING", stopping: "TX stopping…" }[state];
+    document.getElementById("txControlDetail").textContent = {
+      off: lastError ? `Not transmitting. Last attempt: ${lastError}` : "Not transmitting.",
+      starting: "Connecting and preparing samples. Not on air yet.",
+      on: `On air for ${((performance.now() - onAirSince) / 1000).toFixed(1)} s · ${onAirConfig}`,
+      stopping: "Stopping and closing USB…",
+    }[state];
+    document.getElementById("txIndicator").dataset.state = state;
+    document.getElementById("txIndicatorText").textContent = { off: "Off", starting: "Preparing", on: "ON AIR", stopping: "Stopping" }[state];
+    document.body.dataset.tx = state;
+    document.title = state === "on" ? `● TX ON AIR · ${title}` : title;
+    field("EmergencyStop").hidden = state === "off";
+    field("EmergencyStop").disabled = state === "stopping";
+    if (state === "on" && !onAirTimer) onAirTimer = setInterval(refresh, 500);
+    if (state !== "on" && onAirTimer) { clearInterval(onAirTimer); onAirTimer = undefined; }
+  }
   function refresh() {
     const locked = busy || driver.running;
     document.querySelector(".fl2k-hardware").dataset.running = String(driver.running);
@@ -17,8 +68,6 @@ export function installFl2kPanel({ getSettings, generate }) {
     field("Compatibility").textContent = compatibility ? (compatibility.supported ? `Accessible USB interface ${compatibility.interface}, alternate ${compatibility.alternate}. Physical TX still requires validation.` : compatibility.reason) : "Standard FL2000 adapters expose Audio/Video class 0x10, which normal WebUSB blocks. The Wasm package cannot override this. Detection is not confirmation that browser TX is supported.";
     field("Scan").disabled = locked || !driver.usb;
     field("Stop").disabled = !busy && !driver.connected && !driver.running;
-    field("EmergencyStop").hidden = field("Stop").disabled;
-    field("EmergencyStop").disabled = field("Stop").disabled;
     idleButtons.forEach((name) => { field(name).disabled = locked || !driver.connected; });
     let valid = true;
     try { if (field("Source").value === "generated") validateTx(prepareTx({ ...getSettings(), rate: driver.actualRate || getSettings().rate })); }
@@ -26,7 +75,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     let exportValid = true;
     try { validateTx(getSettings()); } catch { exportValid = false; }
     document.getElementById("txExport").disabled = locked || !exportValid;
-    field("Start").disabled = locked || !driver.connected || !driver.actualRate || !field("Armed").checked || !valid;
+    refreshTx(valid);
     field("Files").hidden = field("Source").value !== "files";
     field("ChannelLabel").hidden = field("Source").value === "files";
     field("ActualRate").textContent = driver.actualRate ? `Actual DAC rate: ${(driver.actualRate / 1e6).toFixed(6)} MS/s` : "Actual DAC rate: not configured";
@@ -43,7 +92,12 @@ export function installFl2kPanel({ getSettings, generate }) {
     catch (error) { status(error.name === "NotFoundError" ? "No FL2K selected. Choose an adapter in the USB permission dialog. Standard Audio/Video-class FL2000 devices cannot be opened by normal WebUSB." : error.message); }
     finally { lock(false); }
   }
-  driver.addEventListener("status", (event) => { status(event.detail.message); refresh(); });
+  driver.addEventListener("status", (event) => {
+    if (driver.running && !onAirSince) { starting = false; onAirSince = performance.now(); }
+    if (!driver.running) onAirSince = 0;
+    status(event.detail.message);
+    refresh();
+  });
   driver.addEventListener("devices", (event) => {
     const previous = field("Devices").value;
     field("Devices").replaceChildren();
@@ -73,15 +127,42 @@ export function installFl2kPanel({ getSettings, generate }) {
     status(`${devices.length} authorized FL2K adapter(s). Grant access to discover a new adapter. TX remains off.`);
   }));
   field("Rate").addEventListener("click", () => action(() => driver.setSampleRate(getSettings().rate)));
-  ["Armed", "Source"].forEach((name) => field(name).addEventListener("change", refresh));
-  field("Start").addEventListener("click", () => action(async () => {
-    if (!field("Armed").checked) throw new Error("Confirm your bench setup before transmitting.");
+  ["Armed", "Source", "Red", "Green", "Blue"].forEach((name) => field(name).addEventListener("change", refresh));
+  async function stopTx() {
+    field("Armed").checked = false;
+    field("Repeat").checked = false;
+    stopping = true;
+    refresh();
+    status("Stopping TX and closing USB…");
+    try { await driver.stop(); }
+    catch (error) { status(error.message); }
+    finally { stopping = false; refresh(); }
+  }
+  field("Start").addEventListener("click", () => {
+    const state = txState();
+    if (state === "on" || state === "starting") { stopTx(); return; }
+    if (state !== "off") return;
+    action(async () => {
+      starting = true;
+      lastError = "";
+      refresh();
+      try { await transmit(); }
+      catch (error) { lastError = error.message; throw error; }
+      finally { starting = false; field("Armed").checked = false; field("Repeat").checked = false; }
+    });
+  });
+  async function transmit() {
+    if (!field("Armed").checked) throw new Error("Confirm your setup before transmitting.");
+    if (!driver.connected) await driver.open(selectedDevice());
+    await driver.setSampleRate(getSettings().rate);
+    const rate = `${(driver.actualRate / 1e6).toFixed(3)} MS/s`;
     const options = { signed: true, repeat: field("Repeat").checked, queueDepth: Number(field("Queue").value) };
     if (field("Source").value === "generated") {
       const config = prepareTx({ ...getSettings(), rate: driver.actualRate });
       validateTx(config);
-      status("Generating samples using the actual DAC rate… TX is still off.");
+      status("Generating samples using the actual DAC rate… not on air yet.");
       options[field("Channel").value] = await generate(config, () => !field("Armed").checked || !driver.connected || document.hidden);
+      onAirConfig = `${config.mode} at ${(config.carrier / 1e6).toFixed(3)} MHz · ${rate} · ${field("Channel").value} DAC`;
     } else {
       options.signed = field("Encoding").value === "signed";
       for (const name of ["Red", "Green", "Blue"]) {
@@ -91,19 +172,12 @@ export function installFl2kPanel({ getSettings, generate }) {
         options[name.toLowerCase()] = new Uint8Array(await file.arrayBuffer());
       }
     }
-    if (!field("Armed").checked) throw new Error("TX canceled.");
+    if (field("Source").value === "files") onAirConfig = `raw RGB files · ${rate}`;
+    if (!field("Armed").checked) throw new Error("TX canceled before going on air.");
     await driver.startTx(options);
-    field("Armed").checked = false;
-  }));
-  field("Stop").addEventListener("click", async () => {
-    field("Armed").checked = false;
-    field("Stop").disabled = true;
-    status("Stopping TX and closing USB…");
-    try { await driver.stop(); }
-    catch (error) { status(error.message); }
-    refresh();
-  });
-  field("EmergencyStop").addEventListener("click", () => field("Stop").click());
+  }
+  field("Stop").addEventListener("click", stopTx);
+  field("EmergencyStop").addEventListener("click", stopTx);
   const hex = (name, maxDigits) => {
     const value = field(name).value.trim().replace(/^0x/i, "");
     if (!new RegExp(`^[0-9a-fA-F]{1,${maxDigits}}$`).test(value)) throw new Error(`Invalid hexadecimal ${name}.`);
@@ -132,9 +206,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     field("Result").textContent = `I²C ${write ? "written" : "read"}: ${field("I2cBytes").value}`;
   }));
   const stopOnHide = () => {
-    if (!driver.running && !busy) return;
-    field("Armed").checked = false;
-    driver.stop().catch(() => {});
+    if (txState() === "on" || txState() === "starting") stopTx();
   };
   document.addEventListener("visibilitychange", () => { if (document.hidden) stopOnHide(); });
   window.addEventListener("pagehide", stopOnHide);

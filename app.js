@@ -208,11 +208,9 @@ async function applySettingsToRadio() {
 async function start() {
   if (radio.isPlaying()) return;
   hideOverlay();
-  try {
-    await player.resume();
-  } catch {
-    // Audio will start once the browser allows it.
-  }
+  // Don't wait for this: audio will start once the browser allows it, and in
+  // the installed app the promise can stay pending even though audio runs.
+  player.resume().catch(() => {});
   await radio.start();
 }
 

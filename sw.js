@@ -5,7 +5,7 @@
 // The speech model and its runtime are large, so they are not downloaded
 // up front: they are cached the first time they are used.
 
-const BUILD_ID = "6473a3c12797";
+const BUILD_ID = "14b1bc0d7ee0";
 const MODELS_ID = "8cd30377d7a3";
 const FILES = [
   "./",
@@ -77,6 +77,7 @@ const FILES = [
   "./sim/README.md",
   "./sim/jfk.wav",
   "./stt/guard.js",
+  "./stt/start.js",
   "./stt/worker.js",
   "./style.css",
   "./transcriber.js",

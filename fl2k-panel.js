@@ -1,4 +1,4 @@
-import { Fl2kDevice, inspectFl2k } from "./fl2k-device.js";
+import { Fl2kDevice, inspectFl2k, usbUnrestricted } from "./fl2k-device.js";
 import { prepareTx, validateTx } from "./tx-signal.js";
 
 export function installFl2kPanel({ getSettings, generate }) {
@@ -28,7 +28,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     if (!driver.connected) {
       const device = selectedDevice();
       if (!device) return "Connect an FL2K adapter under FL2K hardware below to enable Transmit.";
-      if (!inspectFl2k(device).supported) return "This FL2K adapter cannot be used from a browser (protected USB class). Use Export FL2K TX samples and native fl2k_file instead.";
+      if (!inspectFl2k(device).supported) return "Chrome only lets the installed app use this FL2K (protected USB class). See \u201cInstall the app\u201d under FL2K hardware below.";
     }
     if (field("Source").value === "files" && !["Red", "Green", "Blue"].some((name) => field(name).files.length)) return "Choose at least one raw sample file below.";
     if (!valid) return "Fix the waveform settings below before transmitting.";
@@ -69,7 +69,14 @@ export function installFl2kPanel({ getSettings, generate }) {
     const selected = driver.devices[Number(field("Devices").value)];
     const compatibility = selected && inspectFl2k(selected);
     field("Open").disabled = locked || driver.connected || !compatibility?.supported;
-    field("Compatibility").textContent = compatibility ? (compatibility.supported ? `Accessible USB interface ${compatibility.interface}, alternate ${compatibility.alternate}. Physical TX still requires validation.` : compatibility.reason) : "Standard FL2000 adapters expose Audio/Video class 0x10, which normal WebUSB blocks. The Wasm package cannot override this. Detection is not confirmation that browser TX is supported.";
+    field("Compatibility").textContent = compatibility
+      ? (compatibility.supported
+        ? `${usbUnrestricted() ? "Installed app: Chrome allows protected USB interfaces. " : ""}Using USB interface ${compatibility.interface}, alternate ${compatibility.alternate}.`
+        : compatibility.reason)
+      : usbUnrestricted()
+        ? "Installed app: Chrome allows the FL2000's protected USB interface. Connect the adapter to transmit."
+        : "Standard FL2000 adapters only have Audio/Video-class (0x10) USB interfaces, which Chrome does not let websites use. The installed app can (see below).";
+    field("Install").hidden = usbUnrestricted();
     field("Scan").disabled = locked || !driver.usb;
     field("Stop").disabled = !busy && !driver.connected && !driver.running;
     idleButtons.forEach((name) => { field(name).disabled = locked || !driver.connected; });
@@ -93,7 +100,11 @@ export function installFl2kPanel({ getSettings, generate }) {
     if (busy) return;
     lock(true);
     try { await callback(); }
-    catch (error) { status(error.name === "NotFoundError" ? "No FL2K selected. Choose an adapter in the USB permission dialog. Standard Audio/Video-class FL2000 devices cannot be opened by normal WebUSB." : error.message); }
+    catch (error) {
+      if (error.name === "NotFoundError") status("No FL2K selected. Choose the adapter in Chrome's USB prompt.");
+      else if (/protected class/.test(error.message)) status("FL2K detected, but this website cannot open it (see below).");
+      else status(error.message);
+    }
     finally { lock(false); }
   }
   driver.addEventListener("status", (event) => {
@@ -196,6 +207,9 @@ export function installFl2kPanel({ getSettings, generate }) {
     if (!driver.connected && !selectedDevice()) {
       document.querySelector(".fl2k-hardware").open = true;
       field("Request").focus();
+    } else if (!driver.connected && !inspectFl2k(selectedDevice()).supported) {
+      document.querySelector(".fl2k-hardware").open = true;
+      field("Install").scrollIntoView({ block: "nearest" });
     } else if (!field("Armed").checked && !field("Armed").disabled) {
       field("Armed").focus();
     }

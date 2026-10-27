@@ -7,6 +7,8 @@
 // the utterance so far is transcribed whenever the worker is idle, so text
 // appears live; the final text replaces it when the utterance ends.
 
+let workerUrlPolicy;
+
 export const MODELS = {
   "moonshine-base": { label: "Moonshine Base", size: "66 MB" },
   "moonshine-tiny": { label: "Moonshine Tiny", size: "32 MB" },
@@ -315,13 +317,22 @@ export class Transcriber extends EventTarget {
   }
 
   createWorker() {
-    // The worker is started from a blob so that it inherits this page's
-    // Content Security Policy; guard.js then locks it to this origin.
-    const guard = new URL("stt/guard.js", this.baseUrl).href;
-    const main = new URL("stt/worker.js", this.baseUrl).href;
-    const source = `import ${JSON.stringify(guard)};\nimport ${JSON.stringify(main)};\n`;
-    const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
-    const worker = new Worker(url, { type: "module" });
+    // On the website the worker is started from a blob so that it inherits
+    // this page's Content Security Policy; guard.js then locks it to this
+    // origin. The installed app forbids blob scripts but gives every worker
+    // its own strict policy, so there it starts from stt/start.js.
+    let url;
+    if (location.protocol === "isolated-app:") {
+      url = new URL("stt/start.js", this.baseUrl).href;
+    } else {
+      const guard = new URL("stt/guard.js", this.baseUrl).href;
+      const main = new URL("stt/worker.js", this.baseUrl).href;
+      const source = `import ${JSON.stringify(guard)};\nimport ${JSON.stringify(main)};\n`;
+      url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+    }
+    // The installed app enforces Trusted Types.
+    workerUrlPolicy ??= globalThis.trustedTypes?.createPolicy("webrtlsdr-worker", { createScriptURL: (u) => u });
+    const worker = new Worker(workerUrlPolicy ? workerUrlPolicy.createScriptURL(url) : url, { type: "module" });
     worker.addEventListener("message", (e) => this.onMessage(e.data));
     worker.addEventListener("error", (e) => {
       this.busy = false;

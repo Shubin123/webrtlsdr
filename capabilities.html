@@ -50,8 +50,9 @@
               <li>Emscripten driver for initialization, achievable DAC sample rates, register access and four-byte I²C operations</li>
               <li>AM, FM, CW, OOK and 2-FSK playbooks with browser-local bookmarks</li>
               <li>Generated modulation or raw signed/unsigned RGB DAC files, repeat, bounded USB queue and Stop/disconnect</li>
-              <li>Hardware testing found stock FL2000 Audio/Video interfaces (class 0x10) blocked by normal WebUSB; Wasm does not bypass this restriction</li>
-              <li>For the tested adapter: export samples here (works offline) and play them with native <code>fl2k_file</code>; no server or bridge is needed</li>
+              <li>Stock FL2000 adapters (Audio/Video USB class 0x10) are blocked for websites; the installed app (an Isolated Web App) can use them, offline and with no server</li>
+              <li>Hardware-tested in the installed app: connect, 20 MS/s DAC rate and register access on a real FL2000; RF output not yet measured</li>
+              <li>Or export samples here (works offline) and play them with native <code>fl2k_file</code></li>
               <li>CC1101 profiles are references, not direct CC1101 control or FL2K UHF transmission</li>
             </ul>
           </article>

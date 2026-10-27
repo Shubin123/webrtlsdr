@@ -67,6 +67,16 @@
         <details class="fl2k-hardware">
           <summary>FL2K hardware · WebUSB + Wasm<span id="fl2kStatus" role="status">Checking authorized USB devices…</span></summary>
           <p id="fl2kCompatibility" class="tx-warning" role="status"></p>
+          <div id="fl2kInstall" class="fl2k-install" hidden>
+            <h3>Transmit with a stock FL2000: install the app</h3>
+            <p>Chrome lets an installed copy of this app use the FL2000's protected USB interface; this website cannot. The installed app is the same static files: it works offline and needs no server.</p>
+            <ol>
+              <li>Open <code>chrome://flags</code>, enable <b>Enable Isolated Web Apps</b>, <b>Enable Isolated Web App Developer Mode</b> and <b>Enable Isolated Web Apps to bypass USB restrictions</b>, then relaunch Chrome.</li>
+              <li>Download <a href="https://github.com/Shubin123/webrtlsdr/releases/download/installable-app/webrtlsdr.swbn">webrtlsdr.swbn</a> (115 MB, includes everything).</li>
+              <li>Open <code>chrome://iwa-dev</code>, click <b>Install</b>, choose <b>Signed Bundle</b>, select the file and install.</li>
+              <li>Open <b>Web RTL-SDR</b> from Chrome's apps and connect the FL2K there.</li>
+            </ol>
+          </div>
           <label>Detected FL2K<select id="fl2kDevices" aria-label="Authorized FL2K adapters"></select></label>
           <button id="fl2kRequest" type="button">Connect / grant FL2K access</button>
           <button id="fl2kOpen" type="button" disabled>Open selected</button>
@@ -85,7 +95,7 @@
           </div>
           <label>USB queue depth<select id="fl2kQueue"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
           <button id="fl2kStop" type="button" disabled>Stop TX and disconnect</button>
-          <p>Experimental path for adapters with accessible interfaces only. The tested stock FL2000 is blocked by its Audio/Video interface class. Transmit connects and applies the DAC rate for you; stopping closes USB. Browser/USB scheduling can cause gaps. Unplug to guarantee RF output is removed.</p>
+          <p>Experimental. On this website the stock FL2000 is blocked by its Audio/Video interface class; the installed app can use it. Transmit connects and applies the DAC rate for you; stopping closes USB. Browser/USB scheduling can cause gaps. Unplug to guarantee RF output is removed.</p>
           <details>
             <summary>Advanced registers / I²C</summary>
             <p>Expert controls, available only with TX stopped. Writes can change device operation. They are not a CC1101 SPI interface.</p>

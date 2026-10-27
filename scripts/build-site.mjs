@@ -176,6 +176,8 @@ for (const file of walk(out)) {
       if (rel === "sw.js" && re.source.includes("fetch")) continue;
       // fetch() of a relative path only reaches this site.
       if (re.source.includes("fetch") && /\bfetch\s*\(\s*["'](?![a-z]+:|\/\/)[^"']*["']\s*\)/.test(code)) continue;
+      // A plain link only navigates when clicked; it loads nothing.
+      if (re.source.startsWith("(src|href|from)") && /^[^<]*(<(?!(link|script|img|iframe|source|video|audio|embed|object)\b)[^>]*>[^<]*)*$/i.test(code) && /<a\s[^>]*href=/.test(code)) continue;
       problems.push(`${rel}:${i + 1}: ${line.trim()}`);
     }
     // Absolute URLs are allowed only in comments and plain links.

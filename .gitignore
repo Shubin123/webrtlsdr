@@ -2,3 +2,5 @@ dist
 node_modules
 site
 .cache
+dist-iwa
+iwa-signing-key.pem

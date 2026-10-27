@@ -12,11 +12,40 @@ their results. The simulated SDR was explicitly disabled.
 | --- | --- |
 | RTL2838UHIDIR, `0bda:2838`, browser RX | Pass |
 | FL2000, `1d5c:2000`, native enumeration / open / PLL / close | Pass |
-| FL2000, normal Chrome WebUSB interface claim | Blocked: protected Audio/Video class `0x10` |
-| FL2000 browser TX / RF loopback | Not passed; blocked before streaming |
+| FL2000, normal Chrome WebUSB interface claim (website) | Blocked: protected Audio/Video class `0x10` |
+| FL2000, installed app (Isolated Web App, `usb-unrestricted`): claim, connect, 20 MS/s, register read | Pass |
+| FL2000 RF output / TX loopback | Not tested |
 
-These results do **not** establish that everything works. In particular, the
-connected stock FL2000 cannot be used for TX by this normal static web app.
+These results do **not** establish that everything works. In particular, no
+transmission was started on the real adapter and RF output was not measured.
+
+## Installed app (Isolated Web App)
+
+Chrome 155 on macOS has the flags *Enable Isolated Web Apps*, *Enable Isolated
+Web App Developer Mode* and *Enable Isolated Web Apps to bypass USB
+restrictions*. With them on, an installed app whose manifest asks for
+`usb-unrestricted` may claim protected interfaces. Tests on October 26, 2026,
+with the same FL2000 (the adapter was picked by hand in Chrome's USB prompt):
+
+- A minimal test app opened the adapter, claimed interface 0 (class `0x10`),
+  selected alternate setting 1, found bulk OUT endpoint 1, released it and
+  closed it. No control or bulk transfers were made.
+- The full app, served from the contents of `dist-iwa/webrtlsdr.swbn`, opened
+  the adapter through the Emscripten driver (`Connected: FL2000DX. TX is off.`),
+  set the DAC rate (actual 20.000000 MS/s, PLL register `0x00646132`, matching
+  the native driver), and enabled Transmit only after the setup confirmation
+  was ticked. Transmit was not pressed.
+- In the same installed app: the simulated receiver played with audio, the
+  speech model loaded from the bundle, a mock adapter with the FL2000's
+  descriptors went on air and stopped, and there were no Content Security
+  Policy or Trusted Types violations.
+
+Two app fixes came out of this: the receiver no longer waits for
+`AudioContext.resume()`, which never settles in an installed app, and the
+speech worker starts from `stt/start.js` there, because the app's policy
+forbids `blob:` workers. Installing the `.swbn` through `chrome://iwa-dev` uses
+the operating system's file picker, which automation cannot drive, so the
+tests installed the identical contents through the developer-mode proxy.
 
 ## RTL-SDR: 17 passing checks
 

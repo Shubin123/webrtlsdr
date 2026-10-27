@@ -361,6 +361,11 @@ button.tx-button:hover:not(:disabled) { border-color: var(--bad); }
 .tx-control[data-state="on"] button.tx-button, .tx-control[data-state="starting"] button.tx-button, .tx-control[data-state="stopping"] button.tx-button { background: #fff; color: #b0141c; border-color: #fff; }
 .fl2k-hardware button { margin: 3px 0; white-space: normal; }
 .fl2k-hardware [hidden] { display: none; }
+.fl2k-install { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); }
+.fl2k-install h3 { margin: 0 0 4px; font-size: 13px; }
+.fl2k-install ol { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+.fl2k-install li { margin: 4px 0; }
+.fl2k-install code { font-size: 11px; }
 .fl2k-hardware output { display: block; overflow-wrap: anywhere; color: var(--accent); }
 .fl2k-hardware[data-running="true"] { border-color: var(--bad); }
 .fl2k-hardware[data-running="true"] #fl2kStatus { color: var(--bad); font-weight: 700; }

@@ -6,14 +6,17 @@ export const isFl2k = (device) => device.vendorId === 0x1d5c && device.productId
 
 const protectedClasses = new Set([0x01, 0x03, 0x08, 0x0b, 0x0e, 0x10, 0xe0]);
 
-export function inspectFl2k(device) {
+/** Whether Chrome lets this page claim protected interfaces (installed app only). */
+export const usbUnrestricted = () => globalThis.document?.featurePolicy?.allowsFeature?.("usb-unrestricted") === true;
+
+export function inspectFl2k(device, unrestricted = usbUnrestricted()) {
   const configurations = device.configuration ? [device.configuration] : (device.configurations || []);
   const blocked = new Set();
   for (const configuration of configurations) {
     for (const iface of configuration.interfaces) {
       if (![0, 1].includes(iface.interfaceNumber)) continue;
       const alternates = iface.alternates || [iface.alternate];
-      const protectedAlternates = alternates.filter((alternate) => protectedClasses.has(alternate.interfaceClass));
+      const protectedAlternates = unrestricted ? [] : alternates.filter((alternate) => protectedClasses.has(alternate.interfaceClass));
       if (protectedAlternates.length) {
         protectedAlternates.forEach((alternate) => blocked.add(alternate.interfaceClass));
         continue;
@@ -26,7 +29,7 @@ export function inspectFl2k(device) {
   return {
     supported: false,
     reason: classes
-      ? `FL2K detected, but its USB interfaces use browser-protected class ${classes}${blocked.has(0x10) ? " (Audio/Video)" : ""}. Normal WebUSB cannot access this adapter, and Emscripten, WinUSB or Chrome flags do not remove this restriction. Use Export FL2K TX samples (works offline) and play the file with native fl2k_file.`
+      ? `FL2K detected, but its USB interfaces use protected class ${classes}${blocked.has(0x10) ? " (Audio/Video)" : ""}, which Chrome does not let websites use. Install the app (below) to transmit with it, or use Export FL2K TX samples with native fl2k_file.`
       : "FL2K detected, but no accessible bulk OUT endpoint 1 exists on interface 0 or 1.",
   };
 }

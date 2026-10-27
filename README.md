@@ -33,18 +33,35 @@ hardware remains receive-only. Microphone/audio-file modulation is not implement
 
 #### Browser FL2K hardware interface (experimental)
 
-**Hardware E2E result (October 26, 2026): stock FL2000 is not usable for TX
-from the normal web app.** The connected `1d5c:2000` adapter enumerates all
-interfaces as Audio/Video class `0x10`. Chrome rejects the interface claim as
-protected. Emscripten does not grant USB permissions or change that class;
-installing WinUSB does not remove the browser's class restriction. The panel
-now checks descriptors before opening the driver and explains this limitation.
-Actual RTL2838 receiving, demodulation changes and stopping passed hardware
-testing. For FL2K hardware, export samples in the app (this works offline)
-and play them with native `fl2k_file`; nothing else runs on a server. Chrome's
-`--disable-webusb-security` switch does not lift the protected-class rule; only
-Isolated Web Apps with the `usb-unrestricted` policy can, and a static site is
-not one. See `docs/hardware-e2e.md` for the measured results.
+**Stock FL2000 adapters need the installed app.** A `1d5c:2000` adapter only
+has Audio/Video-class (`0x10`) USB interfaces, which Chrome does not let
+websites claim, so on the website Transmit stays disabled and says why. The
+same app installed as an *Isolated Web App* may claim them: it asks for the
+`usb-unrestricted` permission, which Chrome grants once its Isolated Web App
+flags are on. It is the same static files in one signed bundle, so it works
+offline from the first start and needs no server or bridge. Hardware testing
+(October 26, 2026) connected the real adapter from the installed app, set the
+DAC to 20 MS/s and read back its PLL register; RF output has not been measured.
+See `docs/hardware-e2e.md`. Exporting samples for native `fl2k_file` still
+works too.
+
+#### Installing the app (for FL2K transmit)
+
+1. In Chrome, open `chrome://flags`, enable **Enable Isolated Web Apps**,
+   **Enable Isolated Web App Developer Mode** and **Enable Isolated Web Apps to
+   bypass USB restrictions**, then relaunch Chrome. Developer mode lets Chrome
+   install apps that are not from a store; only install bundles you trust.
+2. Download [`webrtlsdr.swbn`](https://github.com/Shubin123/webrtlsdr/releases/download/installable-app/webrtlsdr.swbn)
+   (115 MB: the whole app, including both speech models).
+3. Open `chrome://iwa-dev`, click **Install**, choose **Signed Bundle**, pick
+   the file and install. Open **Web RTL-SDR** from Chrome's apps.
+4. To update, install a newer bundle the same way; it replaces the app because
+   it is signed with the same key.
+
+To build the bundle yourself: `npm run build:site && npm run build:iwa` writes
+`dist-iwa/webrtlsdr.swbn`. The first run creates the signing key
+`iwa-signing-key.pem` (ignored by git). Keep a copy: a bundle signed with a
+different key installs as a different app.
 
 Receiving (RX) and transmitting (TX) are separate. **Play RX** and the Space
 key only ever control the receiver; nothing transmits except **Transmit**, in

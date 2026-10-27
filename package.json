@@ -18,12 +18,15 @@
     "build": "rm -fR dist/ && tsc",
     "build:fl2k": "node scripts/build-fl2k.mjs",
     "build:site": "npm run build && npm run build:fl2k && node scripts/build-site.mjs",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "build:iwa": "node scripts/build-iwa.mjs"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.3.1",
     "esbuild": "^0.25.12",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "wbn": "^0.0.9",
+    "wbn-sign": "^0.3.3"
   },
   "dependencies": {
     "@jtarrio/signals": "^0.10.2",

@@ -1,4 +1,4 @@
-import { Fl2kDevice, inspectFl2k, usbUnrestricted } from "./fl2k-device.js";
+import { Fl2kDevice, inspectFl2k, installedApp, unrestrictedHint, usbUnrestricted } from "./fl2k-device.js";
 import { prepareTx, validateTx } from "./tx-signal.js";
 
 export function installFl2kPanel({ getSettings, generate }) {
@@ -28,7 +28,11 @@ export function installFl2kPanel({ getSettings, generate }) {
     if (!driver.connected) {
       const device = selectedDevice();
       if (!device) return "Connect an FL2K adapter under FL2K hardware below to enable Transmit.";
-      if (!inspectFl2k(device).supported) return "Chrome only lets the installed app use this FL2K (protected USB class). See \u201cInstall the app\u201d under FL2K hardware below.";
+      if (!inspectFl2k(device).supported) {
+        return installedApp()
+          ? "This FL2K needs one more Chrome flag: in chrome://flags enable \u201cEnable Isolated Web Apps to bypass USB restrictions\u201d, then relaunch Chrome."
+          : "Chrome only lets the installed app use this FL2K (protected USB class). See \u201cInstall the app\u201d under FL2K hardware below.";
+      }
     }
     if (field("Source").value === "files" && !["Red", "Green", "Blue"].some((name) => field(name).files.length)) return "Choose at least one raw sample file below.";
     if (!valid) return "Fix the waveform settings below before transmitting.";
@@ -75,8 +79,8 @@ export function installFl2kPanel({ getSettings, generate }) {
         : compatibility.reason)
       : usbUnrestricted()
         ? "Installed app: Chrome allows the FL2000's protected USB interface. Connect the adapter to transmit."
-        : "Standard FL2000 adapters only have Audio/Video-class (0x10) USB interfaces, which Chrome does not let websites use. The installed app can (see below).";
-    field("Install").hidden = usbUnrestricted();
+        : `Standard FL2000 adapters only have Audio/Video-class (0x10) USB interfaces, which Chrome does not let websites use. ${unrestrictedHint()}`;
+    field("Install").hidden = installedApp();
     field("Scan").disabled = locked || !driver.usb;
     field("Stop").disabled = !busy && !driver.connected && !driver.running;
     idleButtons.forEach((name) => { field(name).disabled = locked || !driver.connected; });
@@ -102,7 +106,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     try { await callback(); }
     catch (error) {
       if (error.name === "NotFoundError") status("No FL2K selected. Choose the adapter in Chrome's USB prompt.");
-      else if (/protected class/.test(error.message)) status("FL2K detected, but this website cannot open it (see below).");
+      else if (/protected class/.test(error.message)) status(`FL2K detected, but ${installedApp() ? "Chrome has not given this app USB access to it" : "this website cannot open it"} (see below).`);
       else status(error.message);
     }
     finally { lock(false); }

@@ -6,8 +6,21 @@ export const isFl2k = (device) => device.vendorId === 0x1d5c && device.productId
 
 const protectedClasses = new Set([0x01, 0x03, 0x08, 0x0b, 0x0e, 0x10, 0xe0]);
 
+// Chrome reports "usb-unrestricted" as allowed even when the flag that makes it
+// work ("Enable Isolated Web Apps to bypass USB restrictions") is off, so the
+// first refused claim decides.
+let protectedRefused = false;
+
 /** Whether Chrome lets this page claim protected interfaces (installed app only). */
-export const usbUnrestricted = () => globalThis.document?.featurePolicy?.allowsFeature?.("usb-unrestricted") === true;
+export const usbUnrestricted = () => !protectedRefused && globalThis.document?.featurePolicy?.allowsFeature?.("usb-unrestricted") === true;
+
+/** Whether this is the installed app (an Isolated Web App) rather than the website. */
+export const installedApp = () => globalThis.location?.protocol === "isolated-app:";
+
+/** What to do when Chrome refuses protected interfaces here. */
+export const unrestrictedHint = () => installedApp()
+  ? "Chrome has not given this installed app access to it: in chrome://flags enable \u201cEnable Isolated Web Apps to bypass USB restrictions\u201d, then relaunch Chrome."
+  : "Install the app (below) to transmit with it, or use Export FL2K TX samples with native fl2k_file.";
 
 export function inspectFl2k(device, unrestricted = usbUnrestricted()) {
   const configurations = device.configuration ? [device.configuration] : (device.configurations || []);
@@ -29,7 +42,7 @@ export function inspectFl2k(device, unrestricted = usbUnrestricted()) {
   return {
     supported: false,
     reason: classes
-      ? `FL2K detected, but its USB interfaces use protected class ${classes}${blocked.has(0x10) ? " (Audio/Video)" : ""}, which Chrome does not let websites use. Install the app (below) to transmit with it, or use Export FL2K TX samples with native fl2k_file.`
+      ? `FL2K detected, but its USB interfaces use protected class ${classes}${blocked.has(0x10) ? " (Audio/Video)" : ""}, which Chrome does not let websites use. ${unrestrictedHint()}`
       : "FL2K detected, but no accessible bulk OUT endpoint 1 exists on interface 0 or 1.",
   };
 }
@@ -145,6 +158,11 @@ export class Fl2kDevice extends EventTarget {
       } catch (error) {
         await this.invoke("fl2k_web_close").catch(() => {});
         if (device.opened) await device.close().catch(() => {});
+        if (/protected class/i.test(error.message)) {
+          protectedRefused = true;
+          this.dispatchEvent(new CustomEvent("devices", { detail: this.devices }));
+          throw new Error(`Chrome refused the FL2K's protected USB interface. ${unrestrictedHint()}`);
+        }
         throw new Error(`${error.message} Close other FL2K/display applications; WebUSB cannot detach an OS display/storage driver. Windows may require WinUSB and Linux USB permissions.`);
       }
     });

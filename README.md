@@ -41,8 +41,10 @@ same app installed as an *Isolated Web App* may claim them: it asks for the
 flags are on. It is the same static files in one signed bundle, so it works
 offline from the first start and needs no server or bridge. Hardware testing
 (October 26, 2026) connected the real adapter from the installed app, set the
-DAC to 20 MS/s and read back its PLL register; RF output has not been measured.
-See `docs/hardware-e2e.md`. Exporting samples for native `fl2k_file` still
+DAC to 20 MS/s and read back its PLL register. A cabled, attenuated loopback
+then passed: the app transmitted a CW carrier at 40.2 MHz from the FL2K while
+the RTL-SDR received it in the same app, 27 dB above the noise and only at that
+frequency, falling away when TX stopped. See `docs/hardware-e2e.md`. Exporting samples for native `fl2k_file` still
 works too.
 
 #### Installing the app (for FL2K transmit)
@@ -57,6 +59,14 @@ works too.
    the file and install. Open **Web RTL-SDR** from Chrome's apps.
 4. To update, install a newer bundle the same way; it replaces the app because
    it is signed with the same key.
+
+Platforms: the bundle is identical everywhere (Chrome on macOS, Windows, Linux
+and ChromeOS). Only the macOS run above is hardware-tested. On **Windows**, give
+both devices the WinUSB driver with [Zadig](https://zadig.akeo.ie/) (for the
+FL2000, the interface that has bulk endpoint 1). On **Linux**, add udev rules so
+your user may open both devices, and unload the DVB-T driver
+(`sudo rmmod dvb_usb_rtl28xxu`); the FL2000's kernel driver, if loaded, must not
+hold interface 0.
 
 To build the bundle yourself: `npm run build:site && npm run build:iwa` writes
 `dist-iwa/webrtlsdr.swbn`. The first run creates the signing key

@@ -14,10 +14,20 @@ their results. The simulated SDR was explicitly disabled.
 | FL2000, `1d5c:2000`, native enumeration / open / PLL / close | Pass |
 | FL2000, normal Chrome WebUSB interface claim (website) | Blocked: protected Audio/Video class `0x10` |
 | FL2000, installed app (Isolated Web App, `usb-unrestricted`): claim, connect, 20 MS/s, register read | Pass |
-| FL2000 RF output / TX loopback | Not tested |
+| RX+TX loopback in the installed app (FL2K, cabled and attenuated, into the RTL-SDR) | Pass |
 
-These results do **not** establish that everything works. In particular, no
-transmission was started on the real adapter and RF output was not measured.
+Only macOS with Chrome 155 was tested; Windows and Linux were not.
+
+## RX+TX loopback
+
+With the FL2K red output cabled through an attenuator into the RTL-SDR, the
+installed app transmitted a CW carrier at 40.2 MHz (100 MS/s DAC, 80% level)
+and received it with the RTL-SDR in AM mode. Signal meter, highest reading:
+15 dB with TX off, 43 dB on the carrier, 15 dB tuned 4 MHz away, 17 dB after
+Stop TX. The pass criteria were a rise of at least 12 dB, at least 12 dB
+against 4 MHz away, and a fall of at least 8 dB after stopping; the run met
+all three (27, 28 and 26 dB). The signal meter is the app's own, so this shows
+a real frequency-specific signal, not its absolute power or purity.
 
 ## Installed app (Isolated Web App)
 

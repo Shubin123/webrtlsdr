@@ -50,7 +50,8 @@
               <li>Emscripten driver for initialization, achievable DAC sample rates, register access and four-byte I²C operations</li>
               <li>AM, FM, CW, OOK and 2-FSK playbooks with browser-local bookmarks</li>
               <li>Generated modulation or raw signed/unsigned RGB DAC files, repeat, bounded USB queue and Stop/disconnect</li>
-              <li>No local native helper; high-rate RF continuity and physical hardware compatibility remain unverified</li>
+              <li>Hardware testing found stock FL2000 Audio/Video interfaces (class 0x10) blocked by normal WebUSB; Wasm does not bypass this restriction</li>
+              <li>Physical FL2K TX is not working on the tested adapter; native osmo-fl2k or a separately implemented local bridge is required</li>
               <li>CC1101 profiles are references, not direct CC1101 control or FL2K UHF transmission</li>
             </ul>
           </article>

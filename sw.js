@@ -5,7 +5,7 @@
 // The speech model and its runtime are large, so they are not downloaded
 // up front: they are cached the first time they are used.
 
-const BUILD_ID = "3cc23d55b291";
+const BUILD_ID = "9d0461434292";
 const MODELS_ID = "8cd30377d7a3";
 const FILES = [
   "./",
@@ -14,6 +14,7 @@ const FILES = [
   "./fl2k-device.js",
   "./fl2k-panel.js",
   "./fl2k/COPYING.txt",
+  "./fl2k/hardware-e2e.txt",
   "./fl2k/runtime.js",
   "./fl2k/source.tar.gz",
   "./icon.svg",

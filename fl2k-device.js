@@ -4,6 +4,33 @@ export const FL2K_SAMPLES = 1280 * 1024;
 export const FL2K_BYTES = FL2K_SAMPLES * 3;
 export const isFl2k = (device) => device.vendorId === 0x1d5c && device.productId === 0x2000;
 
+const protectedClasses = new Set([0x01, 0x03, 0x08, 0x0b, 0x0e, 0x10, 0xe0]);
+
+export function inspectFl2k(device) {
+  const configurations = device.configuration ? [device.configuration] : (device.configurations || []);
+  const blocked = new Set();
+  for (const configuration of configurations) {
+    for (const iface of configuration.interfaces) {
+      if (![0, 1].includes(iface.interfaceNumber)) continue;
+      const alternates = iface.alternates || [iface.alternate];
+      const protectedAlternates = alternates.filter((alternate) => protectedClasses.has(alternate.interfaceClass));
+      if (protectedAlternates.length) {
+        protectedAlternates.forEach((alternate) => blocked.add(alternate.interfaceClass));
+        continue;
+      }
+      const alternate = alternates.find((setting) => setting.endpoints.some((endpoint) => endpoint.direction === "out" && endpoint.type === "bulk" && endpoint.endpointNumber === 1));
+      if (alternate) return { supported: true, configuration: configuration.configurationValue, interface: iface.interfaceNumber, alternate: alternate.alternateSetting };
+    }
+  }
+  const classes = [...blocked].map((value) => `0x${value.toString(16).padStart(2, "0")}`).join(", ");
+  return {
+    supported: false,
+    reason: classes
+      ? `FL2K detected, but its USB interfaces use browser-protected class ${classes}${blocked.has(0x10) ? " (Audio/Video)" : ""}. Normal WebUSB cannot access this adapter. Emscripten and WinUSB do not remove this restriction. Hardware TX requires native osmo-fl2k or a separately implemented local bridge; this static web app cannot transmit with it.`
+      : "FL2K detected, but no accessible bulk OUT endpoint 1 exists on interface 0 or 1.",
+  };
+}
+
 export class Fl2kDevice extends EventTarget {
   constructor(usb = globalThis.navigator?.usb, factory = createFl2k) {
     super();
@@ -79,7 +106,7 @@ export class Fl2kDevice extends EventTarget {
       this.transport.device = this.transport.devices[index];
       if (!this.transport.device) throw new Error("FL2K device is no longer available.");
       await this.transport.device.open();
-      if (!this.transport.device.configuration) await this.transport.device.selectConfiguration(1);
+      if (this.transport.device.configuration?.configurationValue !== this.usbInterface.configuration) await this.transport.device.selectConfiguration(this.usbInterface.configuration);
       return;
     }
     const device = this.transport.device;
@@ -92,16 +119,18 @@ export class Fl2kDevice extends EventTarget {
         if (iface.claimed) await device.releaseInterface(iface.interfaceNumber);
       }
       await device.close();
-    } else if (operation === 2) await device.claimInterface(argument);
+    } else if (operation === 2) await device.claimInterface(this.usbInterface.interface);
     else if (operation === 3) {
-      if (device.configuration.interfaces.some((iface) => iface.interfaceNumber === argument && iface.claimed)) await device.releaseInterface(argument);
-    } else if (operation === 4) await device.selectAlternateInterface(argument, extra);
+      if (device.configuration.interfaces.some((iface) => iface.interfaceNumber === this.usbInterface.interface && iface.claimed)) await device.releaseInterface(this.usbInterface.interface);
+    } else if (operation === 4) await device.selectAlternateInterface(this.usbInterface.interface, this.usbInterface.alternate);
   }
 
   async open(device) {
     return this.serial(async () => {
       if (this.connected || this.transmitting) throw new Error("Disconnect the current FL2K first.");
       if (!device || !isFl2k(device)) throw new Error("Select an authorized FL2000DX adapter.");
+      this.usbInterface = inspectFl2k(device);
+      if (!this.usbInterface.supported) throw new Error(this.usbInterface.reason);
       await this.initialize();
       this.transport.devices = [device];
       try {

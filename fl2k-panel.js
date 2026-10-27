@@ -1,4 +1,4 @@
-import { Fl2kDevice } from "./fl2k-device.js";
+import { Fl2kDevice, inspectFl2k } from "./fl2k-device.js";
 import { prepareTx, validateTx } from "./tx-signal.js";
 
 export function installFl2kPanel({ getSettings, generate }) {
@@ -11,7 +11,10 @@ export function installFl2kPanel({ getSettings, generate }) {
     const locked = busy || driver.running;
     document.querySelector(".fl2k-hardware").dataset.running = String(driver.running);
     field("Request").disabled = locked || driver.connected || !driver.usb;
-    field("Open").disabled = locked || driver.connected || !driver.devices.length;
+    const selected = driver.devices[Number(field("Devices").value)];
+    const compatibility = selected && inspectFl2k(selected);
+    field("Open").disabled = locked || driver.connected || !compatibility?.supported;
+    field("Compatibility").textContent = compatibility ? (compatibility.supported ? `Accessible USB interface ${compatibility.interface}, alternate ${compatibility.alternate}. Physical TX still requires validation.` : compatibility.reason) : "Standard FL2000 adapters expose Audio/Video class 0x10, which normal WebUSB blocks. The Wasm package cannot override this. Detection is not confirmation that browser TX is supported.";
     field("Scan").disabled = locked || !driver.usb;
     field("Stop").disabled = !busy && !driver.connected && !driver.running;
     field("EmergencyStop").hidden = field("Stop").disabled;
@@ -37,7 +40,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     if (busy) return;
     lock(true);
     try { await callback(); }
-    catch (error) { status(error.message); }
+    catch (error) { status(error.name === "NotFoundError" ? "No FL2K selected. Choose an adapter in the USB permission dialog. Standard Audio/Video-class FL2000 devices cannot be opened by normal WebUSB." : error.message); }
     finally { lock(false); }
   }
   driver.addEventListener("status", (event) => { status(event.detail.message); refresh(); });
@@ -47,7 +50,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     event.detail.forEach((device, index) => {
       const option = document.createElement("option");
       option.value = String(index);
-      option.textContent = `${device.productName || "FL2000DX"}${device.serialNumber ? ` · ${device.serialNumber}` : ` · adapter ${index + 1}`}`;
+      option.textContent = `${device.productName || "FL2000DX"}${device.serialNumber ? ` · ${device.serialNumber}` : ` · adapter ${index + 1}`}${inspectFl2k(device).supported ? "" : " · WebUSB blocked"}`;
       field("Devices").append(option);
     });
     if (!event.detail.length) {
@@ -57,6 +60,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     } else if (previous && Number(previous) < event.detail.length) field("Devices").value = previous;
     refresh();
   });
+  field("Devices").addEventListener("change", refresh);
   driver.addEventListener("progress", (event) => {
     const stats = event.detail;
     const rate = stats.elapsed > 0 ? stats.bytes / 3 / (stats.elapsed / 1000) : 0;

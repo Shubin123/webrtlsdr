@@ -144,3 +144,8 @@ browser profile. Verify that sample transfers stop when RX stops.
 For FL2K, inspect the actual descriptors and the panel's compatibility result
 before attempting TX. Detection alone is not proof of a usable interface.
 Do not substitute a mock-device test for a physical-device result.
+
+Repeated on October 27, 2026 with the transmit-frequency control (the frequency was
+typed into the TX box, which raised the DAC to 101 MS/s by itself): 40.2 MHz CW,
+RTL-SDR signal meter 15 dB with TX off, 40 dB on the carrier, 16 dB tuned 4 MHz
+away, 16 dB after Stop TX; the pill read "ON AIR 40.200 MHz". Pass.

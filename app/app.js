@@ -430,7 +430,7 @@ function updateStatus() {
   }
   el.status.dataset.state = state;
   el.statusText.textContent = text;
-  el.playButton.textContent = playing ? "Stop" : "Play";
+  el.playButton.textContent = playing ? "Stop RX" : "Play RX";
   el.playButton.classList.toggle("active", playing);
   el.recordButton.disabled = !playing;
   el.connectButton.hidden = settings.simulated || (devicePresent && playing);
@@ -732,7 +732,9 @@ function initControls() {
     if (
       t instanceof HTMLInputElement ||
       t instanceof HTMLSelectElement ||
-      t instanceof HTMLTextAreaElement
+      t instanceof HTMLTextAreaElement ||
+      // Shortcuts only control the receiver; leave TX controls alone.
+      t.closest?.(".tx-panel, #fl2kEmergencyStop")
     ) {
       return;
     }

@@ -46,23 +46,35 @@ and play them with native `fl2k_file`; nothing else runs on a server. Chrome's
 Isolated Web Apps with the `usb-unrestricted` policy can, and a static site is
 not one. See `docs/hardware-e2e.md` for the measured results.
 
+Receiving (RX) and transmitting (TX) are separate. **Play RX** and the Space
+key only ever control the receiver; nothing transmits except the **Transmit**
+button at the top of the TX panel. TX is off when the page loads and returns to
+off after every transmission.
+
 1. Expand **FL2K hardware · WebUSB + Wasm** in the modulation panel. Use a Chromium browser on HTTPS or localhost with an FL2000DX adapter
    (`1d5c:2000`). The panel scans previously authorized devices and watches USB
-   connect/disconnect events; use **Connect / grant FL2K access** the first time,
-   or **Open selected** for a detected adapter. Detection never starts TX.
-2. Set the DAC sample rate, then click **Apply DAC sample rate**. The native PLL
-   code chooses an achievable rate, displayed separately. Generated modulation
-   uses that actual rate rather than the requested value.
-3. Select generated modulation on the red/green/blue DAC, or load equal-length
+   connect/disconnect events; use **Connect / grant FL2K access** the first time.
+   Detection never starts TX. **Apply DAC sample rate** shows the achievable
+   rate in advance; Transmit applies it anyway, and generated modulation uses
+   the actual rate rather than the requested value.
+2. Select generated modulation on the red/green/blue DAC, or load equal-length
    raw 8-bit sample files for any combination of RGB channels. Raw files are
    real DAC streams, not IQ, WAV or audio files. Unused DACs remain at midpoint.
-4. Confirm your authorized, attenuated/filtered bench setup and click
-   **Start hardware TX**. Optional repeat runs until stopped; queue depth is
-   adjustable from one to four USB transfers. Inspect transfer statistics for
-   host throughput, not proof of gap-free RF output.
-5. **Stop TX / disconnect** closes USB and cancels pending transfers. Reconnect
-   for the next transmission. Hiding/leaving the page requests a stop; browser
-   shutdown cannot guarantee cleanup. Unplug to guarantee RF output is removed.
+3. Tick the setup confirmation, optionally tick **Keep transmitting until I
+   press Stop**, and press **Transmit**. It connects, applies the DAC rate and
+   prepares the samples ("TX preparing", amber, not on air yet, **Cancel**
+   aborts), then goes on air. Below the Transmit button the panel says why
+   Transmit is disabled, if it is.
+4. While on air the TX box turns red and reads **TRANSMITTING** with the
+   elapsed time, the top bar shows a red **TX ON AIR** pill and a **Stop TX**
+   button, the whole window gets a red frame, and the tab title starts with
+   "● TX ON AIR". Red is not used for anything else; RX playing is green.
+5. **Stop transmitting**, the top bar's **Stop TX**, or hiding the page stops TX
+   and closes USB. A one-shot transmission stops by itself. Either way both
+   ticks are cleared, so the next transmission needs a fresh confirmation.
+   Browser shutdown cannot guarantee cleanup; unplug to guarantee RF output is
+   removed. Queue depth (one to four USB transfers) and transfer statistics are
+   under FL2K hardware; statistics show host throughput, not gap-free RF output.
 
 The advanced panel exposes register read/write and the driver's four-byte I²C
 read/write operations while TX is stopped. Raw register writes invalidate the

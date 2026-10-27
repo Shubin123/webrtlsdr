@@ -21,10 +21,119 @@ This fork includes a complete receiver app in [`app/`](app/) that is published a
 - **Speech model isolation:** the speech worker is started from a blob URL, so it inherits the page's Content-Security-Policy (`connect-src 'self'`, `script-src 'self'`). On top of that, `app/stt/guard.js` runs before the library and rejects any request to another origin and removes XHR/WebSocket/EventSource. Transformers.js is configured for local files only, and its default remote hosts are rewritten to `blocked.invalid` in the bundle. The model files are pinned to a Hugging Face revision and checked against SHA-256 hashes (`scripts/stt-models.json`) at build time.
 - **Build-time check:** `scripts/build-site.mjs` fails the build if any shipped file contains code that could reach the network (`fetch`, XHR, WebSocket, beacons, dynamic imports, external URLs, …). The exceptions are the service worker, which serves the app's own files and refuses every cross-origin request, and the bundled speech library, which is checked for remote hosts instead (see below).
 
-### Run it locally
+### FL2K TX / modulation panel
+
+The left-hand TX panel generates AM, FM, CW, OOK and continuous-phase binary FSK,
+with carrier, DAC sample rate, modulation depth/deviation, output level and
+duration controls. It exports **signed 8-bit real samples**, not IQ, for the
+FL2K red DAC channel. Preview/export alone never transmit. The hardware section
+contains an experimental WebUSB TX path through an Emscripten-compiled driver,
+but the physically tested FL2000 adapter is blocked by protected USB classes. RTL-SDR
+hardware remains receive-only. Microphone/audio-file modulation is not implemented.
+
+#### Browser FL2K hardware interface (experimental)
+
+**Hardware E2E result (October 26, 2026): stock FL2000 is not usable for TX
+from the normal web app.** The connected `1d5c:2000` adapter enumerates all
+interfaces as Audio/Video class `0x10`. Chrome rejects the interface claim as
+protected. Emscripten does not grant USB permissions or change that class;
+installing WinUSB does not remove the browser's class restriction. The panel
+now checks descriptors before opening the driver and explains this limitation.
+Actual RTL2838 receiving, demodulation changes and stopping passed hardware
+testing. Native osmo-fl2k is the available FL2K hardware path; a local bridge
+or separately packaged application would be additional work, not an existing
+feature. See `docs/hardware-e2e.md` for the measured results.
+
+1. Expand **FL2K hardware · WebUSB + Wasm** in the modulation panel. Use a Chromium browser on HTTPS or localhost with an FL2000DX adapter
+   (`1d5c:2000`). The panel scans previously authorized devices and watches USB
+   connect/disconnect events; use **Connect / grant FL2K access** the first time,
+   or **Open selected** for a detected adapter. Detection never starts TX.
+2. Set the DAC sample rate, then click **Apply DAC sample rate**. The native PLL
+   code chooses an achievable rate, displayed separately. Generated modulation
+   uses that actual rate rather than the requested value.
+3. Select generated modulation on the red/green/blue DAC, or load equal-length
+   raw 8-bit sample files for any combination of RGB channels. Raw files are
+   real DAC streams, not IQ, WAV or audio files. Unused DACs remain at midpoint.
+4. Confirm your authorized, attenuated/filtered bench setup and click
+   **Start hardware TX**. Optional repeat runs until stopped; queue depth is
+   adjustable from one to four USB transfers. Inspect transfer statistics for
+   host throughput, not proof of gap-free RF output.
+5. **Stop TX / disconnect** closes USB and cancels pending transfers. Reconnect
+   for the next transmission. Hiding/leaving the page requests a stop; browser
+   shutdown cannot guarantee cleanup. Unplug to guarantee RF output is removed.
+
+The advanced panel exposes register read/write and the driver's four-byte I²C
+read/write operations while TX is stopped. Raw register writes invalidate the
+known rate, so reapply it before transmitting. I²C is not a CC1101 SPI bridge.
+`app/fl2k-device.js` also exposes detection, open/close, rate, register, I²C,
+signed/unsigned RGB streaming, repeat and cancellation to JavaScript callers.
+
+The browser build reuses the driver's initialization, PLL, I²C and RGB byte
+packing code. A small libusb shim uses WebUSB control transfers with Asyncify;
+the native pthread/libusb transfer loop is replaced with bounded browser bulk
+transfers. No local server, native helper, pthreads, SharedArrayBuffer or
+cross-origin-isolation headers are required by the experimental code path. This
+does not mean the connected FL2000 can be accessed by normal WebUSB. Native kernel-driver
+detachment, zero-copy buffers and native callback timing are not available in
+WebUSB. The tested stock FL2000 fails before initialization because all of its
+interfaces are protected. Wasm/mock tests verify software paths, not physical TX.
+
+An OS display/storage driver may prevent interface claims. Close competing
+applications; Windows may need WinUSB and Linux may need USB permissions.
+The browser cannot forcibly detach a kernel driver. Real-time operation at high
+sample rates is not guaranteed; USB/browser stalls can cause output gaps.
+Streaming uses the upstream 1,310,720-sample blocks, padding the final block
+with midpoint samples. Finite playback sends a final midpoint block before
+closing USB; stopping does not promise that the adapter's analog DAC powers off.
+
+To rebuild the Wasm package, install Emscripten with `emcc` on `PATH` (or set
+`EMCC` to its executable), then run `npm run build:fl2k`. `npm run build:site`
+also rebuilds it and fails if compilation fails. The generated
+`app/fl2k/runtime.js` embeds the Wasm bytes and performs no runtime fetch.
+The source archive and GPL license are linked in the panel and shipped with the
+site. The build was verified with Emscripten 6.0.13-git; there are no Emscripten
+requirements for end users viewing the published site.
+
+The playbook picker includes 1 MHz OOK/FSK lab waveforms, LF 60/125 kHz
+experiments, HF AM/CW, and CC1101 reference profiles at 315, 433.92, 868.3 and
+915 MHz. CC1101 references deliberately disable FL2K export: those carriers
+exceed this direct-sampling path's Nyquist limit. There is no SPI CC1101 driver,
+GFSK shaping, protocol decoder, or packet/CRC encoder. Digital modes repeat an
+editable binary test pattern at the selected bit rate. Save/delete custom
+setups as browser-local bookmarks (up to 100); no hardware starts automatically.
+
+Reference facts: Texas Instruments' CC1101 datasheet lists 300–348, 387–464
+and 779–928 MHz operating ranges (`https://www.ti.com/product/CC1101`).
+NIST describes WWVB's 60 kHz time service
+(`https://www.nist.gov/pml/time-and-frequency-division/time-distribution/radio-station-wwvb`).
+These references describe hardware/services, not permission to transmit.
+
+The native driver and command-line tools are included in `drivers/osmo-fl2k`
+from Osmocom revision `3706aad7d56fbf8a153c4018585ebe0efe1785e4`, with browser
+build guards, short-read handling and open-error resource cleanup patches.
+This separate upstream component retains its GPL-2.0-or-later licensing;
+see its `COPYING`. Build it with CMake, a C compiler, pkg-config and libusb-1.0
+development headers installed:
+
+```shell
+cmake -S drivers/osmo-fl2k -B /tmp/webrtlsdr-fl2k-build
+cmake --build /tmp/webrtlsdr-fl2k-build
+# After exporting fl2k-tx.s8, run from the download directory:
+/tmp/webrtlsdr-fl2k-build/src/fl2k_file -s 20000000 -r 0 fl2k-tx.s8
+```
+
+Use the sample rate shown in the panel's generated command if you change it.
+`-r 0` plays once; Ctrl+C stops TX. The browser cannot stop a native process.
+The adapter's achievable DAC rate can differ from the requested rate, changing
+the actual carrier and tone frequencies. Verify using measurement equipment.
+Use a dummy load, attenuation and suitable output filtering; transmit only
+where authorized. Export is capped at 32 million samples to bound browser memory.
+
+### Run the receiver locally
 
 ```shell
 npm ci --ignore-scripts
+emcc --version      # Emscripten is required to build the browser FL2K runtime
 npm run build:site   # builds site/
 npm run serve        # http://localhost:8080 (WebUSB works on localhost)
 ```

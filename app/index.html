@@ -22,6 +22,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="style.css" />
     <script src="app.js" type="module"></script>
+    <script src="tx.js" type="module"></script>
   </head>
   <body>
     <header class="topbar">
@@ -39,6 +40,7 @@
         </button>
         <button id="playButton" class="primary" type="button">Play</button>
         <button id="recordButton" type="button" disabled>Record</button>
+        <button id="fl2kEmergencyStop" class="primary active" type="button" hidden>Stop FL2K</button>
       </div>
     </header>
 
@@ -48,6 +50,74 @@
     </div>
 
     <main class="layout">
+      <aside class="tx-panel" aria-labelledby="txTitle">
+        <h2 id="txTitle">TX · Modulation</h2>
+        <p>FL2K waveform studio</p>
+        <details class="fl2k-hardware">
+          <summary>FL2K hardware · WebUSB + Wasm<span id="fl2kStatus" role="status">Checking authorized USB devices…</span></summary>
+          <p id="fl2kCompatibility" class="tx-warning" role="status"></p>
+          <label>Detected FL2K<select id="fl2kDevices" aria-label="Authorized FL2K adapters"></select></label>
+          <button id="fl2kRequest" type="button">Connect / grant FL2K access</button>
+          <button id="fl2kOpen" type="button" disabled>Open selected</button>
+          <button id="fl2kScan" type="button">Scan devices</button>
+          <button id="fl2kRate" type="button" disabled>Apply DAC sample rate</button>
+          <p id="fl2kActualRate">Actual DAC rate: not configured</p>
+          <p id="fl2kThroughput" aria-live="off">USB transfer statistics appear during TX.</p>
+          <label>TX source<select id="fl2kSource"><option value="generated">Generated modulation</option><option value="files">Raw RGB files</option></select></label>
+          <label id="fl2kChannelLabel">Generated waveform DAC<select id="fl2kChannel"><option value="red">Red</option><option value="green">Green</option><option value="blue">Blue</option></select></label>
+          <div id="fl2kFiles" hidden>
+            <label>Red raw samples<input id="fl2kRed" type="file" accept=".s8,.u8,.bin,.raw" /></label>
+            <label>Green raw samples<input id="fl2kGreen" type="file" accept=".s8,.u8,.bin,.raw" /></label>
+            <label>Blue raw samples<input id="fl2kBlue" type="file" accept=".s8,.u8,.bin,.raw" /></label>
+            <label>File encoding<select id="fl2kEncoding"><option value="signed">Signed 8-bit</option><option value="unsigned">Unsigned 8-bit</option></select></label>
+            <p>Independent DAC streams, equal sample counts, max 32 MB each. Unused DACs are held at midpoint. Not interleaved IQ or WAV.</p>
+          </div>
+          <label>USB queue depth<select id="fl2kQueue"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+          <label><input id="fl2kRepeat" type="checkbox" /> Repeat until stopped</label>
+          <label><input id="fl2kArmed" type="checkbox" /> I have an authorized, filtered/attenuated bench setup and intend to transmit.</label>
+          <button id="fl2kStart" type="button" class="primary" disabled>Start hardware TX</button>
+          <button id="fl2kStop" type="button" disabled>Stop TX / disconnect</button>
+          <p>Experimental path for adapters with accessible interfaces only. The tested stock FL2000 is blocked by its Audio/Video interface class. Stop closes USB; reconnect before another TX. Browser/USB scheduling can cause gaps. Unplug to guarantee RF output is removed.</p>
+          <details>
+            <summary>Advanced registers / I²C</summary>
+            <p>Expert controls, available only with TX stopped. Writes can change device operation. They are not a CC1101 SPI interface.</p>
+            <label>Register address (hex)<input id="fl2kRegister" value="802c" maxlength="4" /></label>
+            <label>32-bit value (hex)<input id="fl2kValue" value="00000000" maxlength="8" /></label>
+            <button id="fl2kReadRegister" type="button" disabled>Read register</button>
+            <button id="fl2kWriteRegister" type="button" disabled>Write register</button>
+            <label>I²C address (hex, 7 bit)<input id="fl2kI2cAddress" value="50" maxlength="2" /></label>
+            <label>I²C register (hex)<input id="fl2kI2cRegister" value="00" maxlength="2" /></label>
+            <label>Four bytes (hex)<input id="fl2kI2cBytes" value="00 00 00 00" /></label>
+            <button id="fl2kReadI2c" type="button" disabled>Read four bytes</button>
+            <button id="fl2kWriteI2c" type="button" disabled>Write four bytes</button>
+            <output id="fl2kResult" aria-live="polite"></output>
+          </details>
+          <p><a href="fl2k/hardware-e2e.txt">Physical hardware test results</a> · <a href="fl2k/COPYING.txt">GPL license</a> · <a href="fl2k/source.tar.gz" download>Driver and Wasm build source</a></p>
+        </details>
+        <label>Playbook / bookmark<select id="txPreset"></select></label>
+        <p id="txNotes"></p>
+        <label>Bookmark name<input id="txBookmarkName" maxlength="80" placeholder="My modulation setup" /></label>
+        <button id="txSave" type="button">Save setup</button>
+        <button id="txDelete" type="button">Delete saved setup</button>
+        <label>Modulation<select id="txMode"><option>AM</option><option>FM</option><option>CW</option><option>OOK</option><option>2-FSK</option></select></label>
+        <label id="txBitrateLabel" hidden>Bit rate (bit/s)<input id="txBitrate" type="number" min="1" max="100000" value="1200" required /></label>
+        <label id="txBitsLabel" hidden>Repeating lab bit pattern<input id="txBits" value="1010101000110011" maxlength="256" pattern="[01]+" required /></label>
+        <label>DAC sample rate (MS/s)<input id="txRate" type="number" min="8" max="160" value="20" step="1" required /></label>
+        <label>Carrier (MHz)<input id="txCarrier" type="number" min="0.001" value="1" step="0.001" required /></label>
+        <label id="txToneLabel">Modulating tone (Hz)<input id="txTone" type="number" min="20" max="20000" value="1000" required /></label>
+        <label id="txDepthLabel">AM depth (%)<input id="txDepth" type="number" min="0" max="100" value="80" required /></label>
+        <label id="txDeviationLabel" hidden>FM / FSK deviation (±kHz)<input id="txDeviation" type="number" min="0.1" max="200" step="0.1" value="5" required /></label>
+        <label>Output level (%)<input id="txLevel" type="number" min="0" max="100" value="25" required /></label>
+        <label>Duration (seconds)<input id="txDuration" type="number" min="0.01" max="2" step="0.01" value="0.1" required /></label>
+        <canvas id="txPreview" width="480" height="140" aria-label="Modulated waveform preview"></canvas>
+        <button id="txExport" type="button" class="primary">Export FL2K TX samples</button>
+        <p id="txStatus" role="status">Preview only — no RF output.</p>
+        <p>Native hardware TX command (after export):</p>
+        <code id="txCommand"></code>
+        <p>Export does not transmit. For browser TX, connect and apply the DAC rate above, then explicitly start hardware TX. The generated waveform uses the actual applied rate. Native CLI playback is optional; stop it with Ctrl+C, not the browser's Stop button.</p>
+        <p>Driver source: <code>drivers/osmo-fl2k</code> in the repository. Build instructions are in the README.</p>
+        <p class="tx-warning">Use a dummy load, attenuation and suitable output filtering. Transmit only where authorized. RTL-SDR is receive-only; TX requires an FL2000 adapter.</p>
+      </aside>
       <section class="display">
         <div class="readout">
           <div class="freq">

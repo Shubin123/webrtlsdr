@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "build": "rm -fR dist/ && tsc",
-    "build:site": "npm run build && node scripts/build-site.mjs",
+    "build:fl2k": "node scripts/build-fl2k.mjs",
+    "build:site": "npm run build && npm run build:fl2k && node scripts/build-site.mjs",
     "serve": "node scripts/serve.mjs"
   },
   "devDependencies": {

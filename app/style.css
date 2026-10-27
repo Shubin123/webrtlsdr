@@ -203,7 +203,7 @@ input[type="range"] {
 .layout {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: 260px minmax(0, 1fr) 320px;
   min-height: 0;
 }
 
@@ -212,6 +212,38 @@ input[type="range"] {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+
+.tx-panel {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 12px;
+  overflow-y: auto;
+  min-width: 0;
+}
+.tx-panel h2 { margin: 0; font-size: 18px; }
+.tx-panel p { color: var(--muted); font-size: 12px; }
+.tx-panel label { display: block; margin: 12px 0; }
+.tx-panel label[hidden] { display: none; }
+.tx-panel input, .tx-panel select { display: block; width: 100%; margin-top: 4px; }
+.tx-panel canvas { width: 100%; background: var(--scope-bg); border: 1px solid var(--border); }
+.tx-panel code { overflow-wrap: anywhere; font-size: 12px; }
+.tx-panel .tx-warning { color: var(--warn); }
+.tx-panel input[type="checkbox"] { display: inline; width: auto; }
+.tx-panel input[type="file"] { font-size: 11px; }
+.fl2k-hardware { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.fl2k-hardware > summary { font-size: 14px; font-weight: 600; cursor: pointer; }
+.fl2k-hardware #fl2kStatus { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin: 8px 0; text-transform: none; letter-spacing: normal; }
+#fl2kEmergencyStop[hidden] { display: none; }
+.fl2k-hardware button { margin: 3px 0; white-space: normal; }
+.fl2k-hardware [hidden] { display: none; }
+.fl2k-hardware output { display: block; overflow-wrap: anywhere; color: var(--accent); }
+.fl2k-hardware[data-running="true"] { border-color: var(--bad); }
+.fl2k-hardware[data-running="true"] #fl2kStatus { color: var(--bad); font-weight: 700; }
+
+@media (min-width: 861px) and (max-width: 1200px) {
+  .layout { grid-template-columns: 230px minmax(0, 1fr); }
+  .layout > .panel { grid-column: 1 / -1; }
 }
 
 .panel {

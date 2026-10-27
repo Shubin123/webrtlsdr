@@ -22,6 +22,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="style.css" />
     <script src="app.js" type="module"></script>
+    <script src="tx.js" type="module"></script>
   </head>
   <body>
     <header class="topbar">
@@ -48,6 +49,33 @@
     </div>
 
     <main class="layout">
+      <aside class="tx-panel" aria-labelledby="txTitle">
+        <h2 id="txTitle">TX · Modulation</h2>
+        <p>FL2K waveform studio</p>
+        <label>Playbook / bookmark<select id="txPreset"></select></label>
+        <p id="txNotes"></p>
+        <label>Bookmark name<input id="txBookmarkName" maxlength="80" placeholder="My modulation setup" /></label>
+        <button id="txSave" type="button">Save setup</button>
+        <button id="txDelete" type="button">Delete saved setup</button>
+        <label>Modulation<select id="txMode"><option>AM</option><option>FM</option><option>CW</option><option>OOK</option><option>2-FSK</option></select></label>
+        <label id="txBitrateLabel" hidden>Bit rate (bit/s)<input id="txBitrate" type="number" min="1" max="100000" value="1200" required /></label>
+        <label id="txBitsLabel" hidden>Repeating lab bit pattern<input id="txBits" value="1010101000110011" maxlength="256" pattern="[01]+" required /></label>
+        <label>DAC sample rate (MS/s)<input id="txRate" type="number" min="8" max="160" value="20" step="1" required /></label>
+        <label>Carrier (MHz)<input id="txCarrier" type="number" min="0.001" value="1" step="0.001" required /></label>
+        <label id="txToneLabel">Modulating tone (Hz)<input id="txTone" type="number" min="20" max="20000" value="1000" required /></label>
+        <label id="txDepthLabel">AM depth (%)<input id="txDepth" type="number" min="0" max="100" value="80" required /></label>
+        <label id="txDeviationLabel" hidden>FM / FSK deviation (±kHz)<input id="txDeviation" type="number" min="0.1" max="200" step="0.1" value="5" required /></label>
+        <label>Output level (%)<input id="txLevel" type="number" min="0" max="100" value="25" required /></label>
+        <label>Duration (seconds)<input id="txDuration" type="number" min="0.01" max="2" step="0.01" value="0.1" required /></label>
+        <canvas id="txPreview" width="480" height="140" aria-label="Modulated waveform preview"></canvas>
+        <button id="txExport" type="button" class="primary">Export FL2K TX samples</button>
+        <p id="txStatus" role="status">Preview only — no RF output.</p>
+        <p>Native hardware TX command (after export):</p>
+        <code id="txCommand"></code>
+        <p>Stop native TX with Ctrl+C. Browser export does not start or stop hardware. Use the actual DAC rate reported by the driver to verify frequency accuracy.</p>
+        <p>Driver source: <code>drivers/osmo-fl2k</code> in the repository. Build instructions are in the README.</p>
+        <p class="tx-warning">Use a dummy load, attenuation and suitable output filtering. Transmit only where authorized. RTL-SDR is receive-only; TX requires an FL2000 adapter.</p>
+      </aside>
       <section class="display">
         <div class="readout">
           <div class="freq">

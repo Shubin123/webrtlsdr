@@ -5,7 +5,7 @@
 // The speech model and its runtime are large, so they are not downloaded
 // up front: they are cached the first time they are used.
 
-const BUILD_ID = "2efa17ce7e31";
+const BUILD_ID = "8990f54b8ece";
 const MODELS_ID = "8cd30377d7a3";
 const FILES = [
   "./",
@@ -73,7 +73,10 @@ const FILES = [
   "./stt/guard.js",
   "./stt/worker.js",
   "./style.css",
-  "./transcriber.js"
+  "./transcriber.js",
+  "./tx-playbooks.js",
+  "./tx-signal.js",
+  "./tx.js"
 ];
 const CACHE = `webrtlsdr-${BUILD_ID}`;
 const MODELS_CACHE = `webrtlsdr-models-${MODELS_ID}`;

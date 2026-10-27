@@ -26,7 +26,7 @@ export function inspectFl2k(device) {
   return {
     supported: false,
     reason: classes
-      ? `FL2K detected, but its USB interfaces use browser-protected class ${classes}${blocked.has(0x10) ? " (Audio/Video)" : ""}. Normal WebUSB cannot access this adapter. Emscripten and WinUSB do not remove this restriction. Hardware TX requires native osmo-fl2k or a separately implemented local bridge; this static web app cannot transmit with it.`
+      ? `FL2K detected, but its USB interfaces use browser-protected class ${classes}${blocked.has(0x10) ? " (Audio/Video)" : ""}. Normal WebUSB cannot access this adapter, and Emscripten, WinUSB or Chrome flags do not remove this restriction. Use Export FL2K TX samples (works offline) and play the file with native fl2k_file.`
       : "FL2K detected, but no accessible bulk OUT endpoint 1 exists on interface 0 or 1.",
   };
 }

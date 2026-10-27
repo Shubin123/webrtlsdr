@@ -78,10 +78,12 @@ protected-device rejection and permitted interface-1 selection using the
 compiled Wasm runtime; those regression checks are software tests, not a
 claim of physical FL2K streaming.
 
-For this adapter, use exported sample files with native `fl2k_file`. Controlling
-native FL2K from a browser would require an additional local bridge or another
-appropriately packaged application. No such bridge is implemented here, and
-the site does not try to disable browser protections.
+For this adapter, use exported sample files with native `fl2k_file`; the export
+works offline and needs no server. Chrome's `--disable-webusb-security` switch
+only disables the old allowed-origins check, not the protected-class rule. The
+only browser exception is an Isolated Web App with the `usb-unrestricted`
+permission policy, which a static site cannot be. The site does not try to
+disable browser protections.
 
 ## Not verified
 

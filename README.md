@@ -40,9 +40,11 @@ protected. Emscripten does not grant USB permissions or change that class;
 installing WinUSB does not remove the browser's class restriction. The panel
 now checks descriptors before opening the driver and explains this limitation.
 Actual RTL2838 receiving, demodulation changes and stopping passed hardware
-testing. Native osmo-fl2k is the available FL2K hardware path; a local bridge
-or separately packaged application would be additional work, not an existing
-feature. See `docs/hardware-e2e.md` for the measured results.
+testing. For FL2K hardware, export samples in the app (this works offline)
+and play them with native `fl2k_file`; nothing else runs on a server. Chrome's
+`--disable-webusb-security` switch does not lift the protected-class rule; only
+Isolated Web Apps with the `usb-unrestricted` policy can, and a static site is
+not one. See `docs/hardware-e2e.md` for the measured results.
 
 1. Expand **FL2K hardware · WebUSB + Wasm** in the modulation panel. Use a Chromium browser on HTTPS or localhost with an FL2000DX adapter
    (`1d5c:2000`). The panel scans previously authorized devices and watches USB
@@ -139,6 +141,13 @@ npm run serve        # http://localhost:8080 (WebUSB works on localhost)
 ```
 
 You can copy the `site/` folder to any static web server. WebUSB requires HTTPS or `localhost`.
+There is no backend: after one visit the service worker serves the whole app
+(receiver, modulation panel, FL2K Wasm driver, sample export, docs) from the
+browser's cache with no server at all, and it can be installed as an app. The
+only part not cached on the first visit is the speech model, which downloads
+when you first turn transcription on and then also works offline. Opening
+`index.html` straight from disk (`file://`) is not supported: Chrome refuses to
+load module scripts from `file://`, and the offline cache needs HTTPS or localhost.
 
 ### Publishing to GitHub Pages
 

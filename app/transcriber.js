@@ -388,6 +388,16 @@ export class Transcriber extends EventTarget {
           this.drain();
         } else {
           this.ready = false;
+          // The model is downloaded on first use; offline, it is only
+          // available if that has already happened.
+          if (/not found locally|failed to fetch|networkerror/i.test(msg.message)) {
+            const info = MODELS[this.model];
+            this.status(
+              "error",
+              `${info.label} has not been downloaded to this device yet. Turn transcription on once while connected to download it (${info.size}); after that it works offline.`,
+            );
+            break;
+          }
         }
         this.status("error", `Speech recognition error: ${msg.message}`);
         break;

@@ -44,6 +44,17 @@
         <h2>Capabilities</h2>
         <div class="cards">
           <article class="card">
+            <h3>FL2K TX · experimental WebUSB + Wasm</h3>
+            <ul>
+              <li>Detect authorized FL2000DX adapters, grant USB access and explicitly connect; never auto-transmit</li>
+              <li>Emscripten driver for initialization, achievable DAC sample rates, register access and four-byte I²C operations</li>
+              <li>AM, FM, CW, OOK and 2-FSK playbooks with browser-local bookmarks</li>
+              <li>Generated modulation or raw signed/unsigned RGB DAC files, repeat, bounded USB queue and Stop/disconnect</li>
+              <li>No local native helper; high-rate RF continuity and physical hardware compatibility remain unverified</li>
+              <li>CC1101 profiles are references, not direct CC1101 control or FL2K UHF transmission</li>
+            </ul>
+          </article>
+          <article class="card">
             <h3>Plug and play</h3>
             <ul>
               <li>Allow your stick once with <i>Connect SDR</i>; after that it is detected automatically whenever it is plugged in</li>

@@ -1,5 +1,8 @@
 import { prepareTx, validateTx, txSample } from "./tx-signal.js";
 import { playbooks } from "./tx-playbooks.js";
+import { installFl2kPanel } from "./fl2k-panel.js";
+
+let hardware;
 
 const field = (name) => document.getElementById(`tx${name}`);
 const numeric = (name) => Number(field(name).value);
@@ -34,21 +37,28 @@ function refresh() {
     field("Command").textContent = "";
     field("Export").disabled = true;
   }
+  hardware?.refresh();
 }
-document.querySelectorAll(".tx-panel input:not(#txBookmarkName), #txMode").forEach((input) => input.addEventListener("input", refresh));
+document.querySelectorAll('.tx-panel input[id^="tx"]:not(#txBookmarkName), #txMode').forEach((input) => input.addEventListener("input", refresh));
+async function generate(config, canceled = () => false) {
+  const samples = new Int8Array(Math.floor(config.rate * config.duration));
+  for (let offset = 0; offset < samples.length; offset += 262144) {
+    if (canceled()) throw new Error("TX sample generation canceled.");
+    const end = Math.min(samples.length, offset + 262144);
+    for (let index = offset; index < end; index++) samples[index] = txSample(config, index);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return samples;
+}
 field("Export").addEventListener("click", async () => {
   field("Export").disabled = true;
   const controls = [...document.querySelectorAll(".tx-panel input, .tx-panel select, #txSave, #txDelete")];
   controls.forEach((control) => { control.disabled = true; });
+  hardware?.setBusy(true);
   try {
     const config = settings();
     validateTx(config);
-    const samples = new Int8Array(Math.floor(config.rate * config.duration));
-    for (let offset = 0; offset < samples.length; offset += 262144) {
-      const end = Math.min(samples.length, offset + 262144);
-      for (let index = offset; index < end; index++) samples[index] = txSample(config, index);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
+    const samples = await generate(config);
     const url = URL.createObjectURL(new Blob([samples], { type: "application/octet-stream" }));
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -61,6 +71,7 @@ field("Export").addEventListener("click", async () => {
   } finally {
     controls.forEach((control) => { control.disabled = false; });
     field("Export").disabled = false;
+    hardware?.setBusy(false);
   }
 });
 const storageKey = "webrtlsdr.tx-bookmarks.v1";
@@ -115,3 +126,4 @@ field("Delete").addEventListener("click", () => {
 });
 renderPresets();
 loadPreset();
+hardware = installFl2kPanel({ getSettings: settings, generate });

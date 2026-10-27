@@ -229,6 +229,17 @@ input[type="range"] {
 .tx-panel canvas { width: 100%; background: var(--scope-bg); border: 1px solid var(--border); }
 .tx-panel code { overflow-wrap: anywhere; font-size: 12px; }
 .tx-panel .tx-warning { color: var(--warn); }
+.tx-panel input[type="checkbox"] { display: inline; width: auto; }
+.tx-panel input[type="file"] { font-size: 11px; }
+.fl2k-hardware { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.fl2k-hardware > summary { font-size: 14px; font-weight: 600; cursor: pointer; }
+.fl2k-hardware #fl2kStatus { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin: 8px 0; text-transform: none; letter-spacing: normal; }
+#fl2kEmergencyStop[hidden] { display: none; }
+.fl2k-hardware button { margin: 3px 0; white-space: normal; }
+.fl2k-hardware [hidden] { display: none; }
+.fl2k-hardware output { display: block; overflow-wrap: anywhere; color: var(--accent); }
+.fl2k-hardware[data-running="true"] { border-color: var(--bad); }
+.fl2k-hardware[data-running="true"] #fl2kStatus { color: var(--bad); font-weight: 700; }
 
 @media (min-width: 861px) and (max-width: 1200px) {
   .layout { grid-template-columns: 230px minmax(0, 1fr); }

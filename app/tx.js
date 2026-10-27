@@ -39,6 +39,43 @@ function refresh() {
   }
   hardware?.refresh();
 }
+// The DAC must run well above twice the carrier. Raise (never lower) the rate
+// when a higher frequency needs it, and say so.
+function fitRate() {
+  const carrier = numeric("Carrier");
+  const rate = numeric("Rate");
+  const note = document.getElementById("txFreqNote");
+  if (!(carrier > 0) || !Number.isFinite(rate)) return;
+  const needed = Math.ceil(carrier * 2.5);
+  // Keep "raised to" until the next change; drop the limit warning once it no longer applies.
+  if (needed <= 160 && note.textContent.startsWith("Highest")) note.textContent = "";
+  if (needed > 160) {
+    note.textContent = `Highest usable frequency is about ${(160 / 2.5).toFixed(0)} MHz (DAC limit 160 MS/s).`;
+  } else if (needed > rate) {
+    field("Rate").value = String(needed);
+    note.textContent = `DAC rate raised to ${needed} MS/s to carry ${carrier} MHz.`;
+  }
+}
+function stepCarrier(direction, shift) {
+  const step = shift ? 1 : 0.1;
+  const next = Math.max(0.001, Math.round((numeric("Carrier") + direction * step) * 1000) / 1000);
+  field("Carrier").value = String(next);
+  fitRate();
+  refresh();
+}
+field("FreqDown").addEventListener("click", (e) => stepCarrier(-1, e.shiftKey));
+field("FreqUp").addEventListener("click", (e) => stepCarrier(1, e.shiftKey));
+field("Carrier").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); stepCarrier(e.key === "ArrowUp" ? 1 : -1, e.shiftKey); }
+});
+field("Carrier").addEventListener("input", fitRate);
+field("MatchRx").addEventListener("click", () => {
+  const mhz = Number.parseFloat(document.getElementById("freqInput").value);
+  if (!(mhz > 0)) return;
+  field("Carrier").value = String(mhz);
+  fitRate();
+  refresh();
+});
 document.querySelectorAll('.tx-panel input[id^="tx"]:not(#txBookmarkName), #txMode').forEach((input) => input.addEventListener("input", refresh));
 async function generate(config, canceled = () => false) {
   const samples = new Int8Array(Math.floor(config.rate * config.duration));

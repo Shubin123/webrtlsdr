@@ -57,6 +57,17 @@
         <h2 id="txTitle">TX · Modulation</h2>
         <p>FL2K waveform studio. Transmitting is separate from listening (RX) and is always off until you press Transmit.</p>
         <section class="tx-control" id="txControl" data-state="off" aria-label="Transmitter">
+          <div class="tx-freq">
+            <label for="txCarrier">Transmit frequency</label>
+            <div class="tx-freq-row">
+              <button id="txFreqDown" type="button" title="Down 0.1 MHz (Shift: 1 MHz)" aria-label="Lower transmit frequency">◀</button>
+              <input id="txCarrier" type="number" min="0.001" value="1" step="0.001" inputmode="decimal" required />
+              <span class="unit">MHz</span>
+              <button id="txFreqUp" type="button" title="Up 0.1 MHz (Shift: 1 MHz)" aria-label="Raise transmit frequency">▶</button>
+            </div>
+            <button id="txMatchRx" type="button" class="link">Match RX frequency</button>
+            <p id="txFreqNote"></p>
+          </div>
           <div class="tx-control-state" role="status" aria-live="assertive"><span class="dot"></span><span id="txControlState">TX off</span></div>
           <p id="txControlDetail">Not transmitting.</p>
           <label class="tx-option"><input id="fl2kArmed" type="checkbox" /> My setup is authorized, filtered and attenuated (dummy load or cable).</label>
@@ -121,7 +132,6 @@
         <label id="txBitrateLabel" hidden>Bit rate (bit/s)<input id="txBitrate" type="number" min="1" max="100000" value="1200" required /></label>
         <label id="txBitsLabel" hidden>Repeating lab bit pattern<input id="txBits" value="1010101000110011" maxlength="256" pattern="[01]+" required /></label>
         <label>DAC sample rate (MS/s)<input id="txRate" type="number" min="8" max="160" value="20" step="1" required /></label>
-        <label>Carrier (MHz)<input id="txCarrier" type="number" min="0.001" value="1" step="0.001" required /></label>
         <label id="txToneLabel">Modulating tone (Hz)<input id="txTone" type="number" min="20" max="20000" value="1000" required /></label>
         <label id="txDepthLabel">AM depth (%)<input id="txDepth" type="number" min="0" max="100" value="80" required /></label>
         <label id="txDeviationLabel" hidden>FM / FSK deviation (±kHz)<input id="txDeviation" type="number" min="0.1" max="200" step="0.1" value="5" required /></label>

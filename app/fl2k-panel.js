@@ -53,8 +53,12 @@ export function installFl2kPanel({ getSettings, generate }) {
     document.getElementById("txIndicatorText").textContent = { off: "Off", starting: "Preparing", on: "ON AIR", stopping: "Stopping" }[state];
     document.body.dataset.tx = state;
     document.title = state === "on" ? `● TX ON AIR · ${title}` : title;
-    field("EmergencyStop").hidden = state === "off";
-    field("EmergencyStop").disabled = state === "stopping";
+    const header = field("HeaderTx");
+    header.dataset.state = state;
+    header.textContent = { off: "Transmit", starting: "■ Cancel TX", on: "■ Stop TX", stopping: "Stopping…" }[state];
+    header.disabled = state === "stopping";
+    header.setAttribute("aria-disabled", String(Boolean(blocked)));
+    header.title = blocked || (state === "off" ? "Transmit with the settings in the TX panel" : "");
     if (state === "on" && !onAirTimer) onAirTimer = setInterval(refresh, 500);
     if (state !== "on" && onAirTimer) { clearInterval(onAirTimer); onAirTimer = undefined; }
   }
@@ -177,7 +181,25 @@ export function installFl2kPanel({ getSettings, generate }) {
     await driver.startTx(options);
   }
   field("Stop").addEventListener("click", stopTx);
-  field("EmergencyStop").addEventListener("click", stopTx);
+  // The top-bar button mirrors Transmit. When transmitting is not possible yet
+  // it shows what is missing instead of doing anything.
+  field("HeaderTx").addEventListener("click", () => {
+    if (txState() !== "off" || !field("Start").disabled) {
+      field("Start").click();
+      return;
+    }
+    const box = document.getElementById("txControl");
+    box.scrollIntoView({ block: "nearest" });
+    box.classList.remove("attention");
+    void box.offsetWidth;
+    box.classList.add("attention");
+    if (!driver.connected && !selectedDevice()) {
+      document.querySelector(".fl2k-hardware").open = true;
+      field("Request").focus();
+    } else if (!field("Armed").checked && !field("Armed").disabled) {
+      field("Armed").focus();
+    }
+  });
   const hex = (name, maxDigits) => {
     const value = field(name).value.trim().replace(/^0x/i, "");
     if (!new RegExp(`^[0-9a-fA-F]{1,${maxDigits}}$`).test(value)) throw new Error(`Invalid hexadecimal ${name}.`);

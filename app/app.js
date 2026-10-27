@@ -734,7 +734,7 @@ function initControls() {
       t instanceof HTMLSelectElement ||
       t instanceof HTMLTextAreaElement ||
       // Shortcuts only control the receiver; leave TX controls alone.
-      t.closest?.(".tx-panel, #fl2kEmergencyStop")
+      t.closest?.(".tx-panel, #fl2kHeaderTx")
     ) {
       return;
     }
@@ -1303,6 +1303,19 @@ demodulator.addEventListener("stereo-status", (e) => {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol !== "https:" && location.hostname !== "localhost") return;
+  // The page is served from the cache, so after an update it first shows the
+  // previous version. Switch to the new one as soon as it takes over: right
+  // away if nothing is running, otherwise when the user is ready.
+  const updating = navigator.serviceWorker.controller !== null;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!updating) return;
+    const transmitting = (document.body.dataset.tx || "off") !== "off";
+    if (!radio.isPlaying() && !transmitting) {
+      location.reload();
+    } else {
+      showBanner("A new version of this app is ready.", "Reload", () => location.reload());
+    }
+  });
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 

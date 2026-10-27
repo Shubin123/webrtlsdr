@@ -47,8 +47,9 @@ Isolated Web Apps with the `usb-unrestricted` policy can, and a static site is
 not one. See `docs/hardware-e2e.md` for the measured results.
 
 Receiving (RX) and transmitting (TX) are separate. **Play RX** and the Space
-key only ever control the receiver; nothing transmits except the **Transmit**
-button at the top of the TX panel. TX is off when the page loads and returns to
+key only ever control the receiver; nothing transmits except **Transmit**, in
+the top bar next to Play RX and at the top of the TX panel. When Transmit is
+not possible yet, the top-bar button shows what is missing instead. TX is off when the page loads and returns to
 off after every transmission.
 
 1. Expand **FL2K hardware · WebUSB + Wasm** in the modulation panel. Use a Chromium browser on HTTPS or localhost with an FL2000DX adapter
@@ -153,6 +154,8 @@ npm run serve        # http://localhost:8080 (WebUSB works on localhost)
 ```
 
 You can copy the `site/` folder to any static web server. WebUSB requires HTTPS or `localhost`.
+After a new version is published, opening the site once switches to it (if
+RX or TX is running, a Reload banner appears instead of interrupting it).
 There is no backend: after one visit the service worker serves the whole app
 (receiver, modulation panel, FL2K Wasm driver, sample export, docs) from the
 browser's cache with no server at all, and it can be installed as an app. The

@@ -81,6 +81,12 @@ export function installFl2kPanel({ getSettings, generate }) {
       : usbUnrestricted()
         ? "Installed app: Chrome allows the FL2000's protected USB interface. Connect the adapter to transmit."
         : `Standard FL2000 adapters only have Audio/Video-class (0x10) USB interfaces, which Chrome does not let websites use. ${unrestrictedHint()}`;
+    const iwa = field("Iwa");
+    iwa.hidden = false;
+    field("IwaStatus").textContent = installedApp()
+      ? "Running as installed app (Isolated Web App). Protected USB interfaces are available."
+      : "This is the website version. Install the app for direct FL2K USB access.";
+    field("IwaLink").hidden = installedApp();
     field("Install").hidden = installedApp();
     field("Scan").disabled = locked || !driver.usb;
     field("Stop").disabled = !busy && !driver.connected && !driver.running;

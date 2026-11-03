@@ -37,8 +37,13 @@ function configure(base) {
   env.useBrowserCache = false;
   env.useWasmCache = false;
   const onnx = env.backends.onnx;
+  // Both the WASM binary and the JS factory module must be pointed at this
+  // site. Without the mjs path, ORT falls back to import.meta.url which
+  // cannot resolve inside a blob worker. The asyncify variant is the
+  // Transformers.js default and works in all browsers.
   onnx.wasm.wasmPaths = {
-    wasm: new URL("stt/ort-wasm-simd-threaded.wasm", base).href,
+    wasm: new URL("stt/ort-wasm-simd-threaded.asyncify.wasm", base).href,
+    mjs: new URL("stt/ort-wasm-simd-threaded.asyncify.mjs", base).href,
   };
   // Multiple threads need cross-origin isolation, which GitHub Pages lacks,
   // and only make transcription about 25% faster.

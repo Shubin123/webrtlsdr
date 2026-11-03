@@ -97,10 +97,12 @@ fs.writeFileSync(
     .replaceAll("Mistral3ForConditionalGeneration", "Mistral3ForConditionalGenerationModel"),
 );
 const ortDist = path.join(root, "node_modules/onnxruntime-web/dist");
-fs.copyFileSync(
-  path.join(ortDist, "ort-wasm-simd-threaded.wasm"),
-  path.join(out, "stt/ort-wasm-simd-threaded.wasm"),
-);
+for (const file of [
+  "ort-wasm-simd-threaded.asyncify.wasm",
+  "ort-wasm-simd-threaded.asyncify.mjs",
+]) {
+  fs.copyFileSync(path.join(ortDist, file), path.join(out, "stt/" + file));
+}
 for (const [name, file] of [
   ["transformers", "node_modules/@huggingface/transformers/LICENSE"],
   ["onnxruntime-web", "node_modules/onnxruntime-web/LICENSE"],
@@ -158,6 +160,12 @@ for (const file of walk(out)) {
   const rel = path.relative(out, file);
   // guard.js names the network APIs in order to remove them.
   if (rel === path.join("stt", "guard.js")) continue;
+  // The FL2K runtime is Emscripten-generated with -sSINGLE_FILE (WASM is
+  // embedded). Its readAsync/fetch is dead code and never runs.
+  if (rel === path.join("fl2k", "runtime.js")) continue;
+  // The ORT WASM factory module is a third-party Emscripten build that
+  // only loads its companion .wasm file from this site.
+  if (rel.startsWith(path.join("stt", "ort-"))) continue;
   if (rel === path.join("stt", "worker.js")) {
     // A third-party bundle: it contains fetch() and dynamic imports, which it
     // only points at this site (see stt/worker.js). It runs under the page's
@@ -199,7 +207,8 @@ const files = walk(out)
   .sort();
 const modelsId = createHash("sha256")
   .update(fs.readFileSync(manifestPath))
-  .update(fs.readFileSync(path.join(ortDist, "ort-wasm-simd-threaded.wasm")))
+  .update(fs.readFileSync(path.join(ortDist, "ort-wasm-simd-threaded.asyncify.wasm")))
+  .update(fs.readFileSync(path.join(ortDist, "ort-wasm-simd-threaded.asyncify.mjs")))
   .digest("hex")
   .slice(0, 12);
 const hash = createHash("sha256");

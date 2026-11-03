@@ -19,7 +19,8 @@
     "build:fl2k": "node scripts/build-fl2k.mjs",
     "build:site": "npm run build && npm run build:fl2k && node scripts/build-site.mjs",
     "serve": "node scripts/serve.mjs",
-    "build:iwa": "node scripts/build-iwa.mjs"
+    "build:iwa": "node scripts/build-iwa.mjs",
+    "test": "node tests/e2e-build.mjs && node tests/e2e-fl2k-panel.mjs && node tests/e2e-transcriber.mjs"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.3.1",

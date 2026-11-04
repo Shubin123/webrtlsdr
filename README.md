@@ -54,11 +54,12 @@ works too.
    bypass USB restrictions**, then relaunch Chrome. Developer mode lets Chrome
    install apps that are not from a store; only install bundles you trust.
 2. Download [`webrtlsdr.swbn`](https://github.com/Shubin123/webrtlsdr/releases/download/installable-app/webrtlsdr.swbn)
-   (115 MB: the whole app, including both speech models).
+   (127 MB: the whole app, including both speech models).
 3. Open `chrome://iwa-dev`, click **Install**, choose **Signed Bundle**, pick
    the file and install. Open **Web RTL-SDR** from Chrome's apps.
 4. To update, install a newer bundle the same way; it replaces the app because
-   it is signed with the same key.
+   it is signed with the same key. Bundles from November 4, 2026 on use a new
+   key: if you installed an earlier one, uninstall it first.
 
 Platforms: the bundle is identical everywhere (Chrome on macOS, Windows, Linux
 and ChromeOS). Only the macOS run above is hardware-tested. On **Windows**, give

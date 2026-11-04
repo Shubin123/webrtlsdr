@@ -59,6 +59,16 @@ test("FL2K header TX button exists in topbar", () => {
   assert.ok(html.includes('id="fl2kHeaderTx"'), "fl2kHeaderTx button missing");
 });
 
+test("Record & replay controls exist", () => {
+  for (const id of ["iqRecord", "iqSeconds", "iqStatus", "iqUse", "iqSave", "iqLoad"]) {
+    assert.ok(html.includes(`id="${id}"`), `${id} missing`);
+  }
+});
+
+test("TX source offers recorded IQ replay", () => {
+  assert.ok(html.includes('<option value="replay">'), "replay source option missing");
+});
+
 // --------------------------------------------------------------------------
 // IWA integration elements
 // --------------------------------------------------------------------------

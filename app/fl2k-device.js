@@ -217,7 +217,42 @@ export class Fl2kDevice extends EventTarget {
     });
   }
 
-  async startTx({ red, green, blue, signed = true, repeat = false, queueDepth = 2 }) {
+  async startTx(options, attempt = 1) {
+    if (attempt === 1) this.stopRequested = false;
+    const { stream } = await this.beginTx(options);
+    if (!(await this.outputDead(stream))) return stream;
+    const device = this.transport.device;
+    const rate = this.actualRate;
+    this.stopping = true;
+    this.running = false;
+    await stream.catch(() => {});
+    if (attempt >= 5) throw new Error("The FL2K accepted samples but its DAC output did not start in 5 attempts. Unplug and replug the adapter.");
+    this.report(`FL2K DAC output did not start; restarting the adapter (attempt ${attempt + 1} of 5)…`);
+    const canceled = async () => {
+      if (!this.stopRequested) return;
+      await this.stop();
+      throw new Error("TX stopped while restarting the FL2K.");
+    };
+    await canceled();
+    await this.open(device);
+    await canceled();
+    await this.setSampleRate(rate);
+    await canceled();
+    return this.startTx(options, attempt + 1);
+  }
+
+  // Some starts leave the FL2000 taking USB data with a silent DAC until the
+  // next session. Bits 8–10 of register 0x8000 read 6 when output runs, 5 when dead.
+  async outputDead(stream) {
+    const finished = await Promise.race([stream.then(() => true, () => true), new Promise((resolve) => setTimeout(() => resolve(false), 50))]);
+    if (finished || !this.running) return false;
+    try {
+      const result = await this.transport.device.controlTransferIn({ requestType: "vendor", recipient: "device", request: 0x40, value: 0, index: 0x8000 }, 4);
+      return result.status === "ok" && ((result.data.getUint32(0, true) >> 8) & 7) === 5;
+    } catch { return false; }
+  }
+
+  async beginTx({ red, green, blue, signed = true, repeat = false, queueDepth = 2 }) {
     await this.serial(async () => {
       this.assertIdle();
       if (!this.actualRate) throw new Error("Apply a sample rate before TX.");
@@ -236,7 +271,7 @@ export class Fl2kDevice extends EventTarget {
       this.report("TX ACTIVE — streaming DAC samples over WebUSB.");
       this.stream = this.pump(channels, lengths[0], signed, repeat, queueDepth);
     });
-    return this.stream;
+    return { stream: this.stream };
   }
 
   async bulk(bytes) {
@@ -324,6 +359,7 @@ export class Fl2kDevice extends EventTarget {
   }
 
   async stop() {
+    this.stopRequested = true;
     this.stopping = true;
     this.running = false;
     if (this.transport.device?.opened) await this.transport.device.close().catch(() => {});

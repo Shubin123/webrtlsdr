@@ -1,7 +1,8 @@
 import { Fl2kDevice, inspectFl2k, installedApp, unrestrictedHint, usbUnrestricted } from "./fl2k-device.js";
 import { prepareTx, validateTx } from "./tx-signal.js";
+import { duration, renderReplay, replayLength, replayProblem } from "./iq-replay.js";
 
-export function installFl2kPanel({ getSettings, generate }) {
+export function installFl2kPanel({ getSettings, generate, getReplay = () => null }) {
   const field = (name) => document.getElementById(`fl2k${name}`);
   const driver = new Fl2kDevice();
   let busy = false;
@@ -23,7 +24,7 @@ export function installFl2kPanel({ getSettings, generate }) {
     if (starting) return "starting";
     return "off";
   }
-  function blockedReason(valid) {
+  function blockedReason(problem) {
     if (!driver.usb) return "Transmit needs WebUSB, which this browser does not have.";
     if (busy) return "Busy with another FL2K action…";
     if (!driver.connected) {
@@ -36,13 +37,13 @@ export function installFl2kPanel({ getSettings, generate }) {
       }
     }
     if (field("Source").value === "files" && !["Red", "Green", "Blue"].some((name) => field(name).files.length)) return "Choose at least one raw sample file below.";
-    if (!valid) return "Fix the waveform settings below before transmitting.";
+    if (problem) return problem;
     if (!field("Armed").checked) return "Tick the setup confirmation above to enable Transmit.";
     return "";
   }
-  function refreshTx(valid) {
+  function refreshTx(problem) {
     const state = txState();
-    const blocked = state === "off" ? blockedReason(valid) : "";
+    const blocked = state === "off" ? blockedReason(problem) : "";
     field("Start").disabled = state === "stopping" || Boolean(blocked);
     field("Start").textContent = { off: "Transmit", starting: "Cancel", on: "■ Stop transmitting", stopping: "Stopping…" }[state];
     document.getElementById("txBlocked").textContent = blocked;
@@ -91,15 +92,22 @@ export function installFl2kPanel({ getSettings, generate }) {
     field("Scan").disabled = locked || !driver.usb;
     field("Stop").disabled = !busy && !driver.connected && !driver.running;
     idleButtons.forEach((name) => { field(name).disabled = locked || !driver.connected; });
-    let valid = true;
-    try { if (field("Source").value === "generated") validateTx(prepareTx({ ...getSettings(), rate: driver.actualRate || getSettings().rate })); }
-    catch { valid = false; }
+    let problem = "";
+    if (field("Source").value === "generated") {
+      try { validateTx(prepareTx({ ...getSettings(), rate: driver.actualRate || getSettings().rate })); }
+      catch { problem = "Fix the waveform settings below before transmitting."; }
+    } else if (field("Source").value === "replay") {
+      const settings = getSettings();
+      problem = getReplay()
+        ? replayProblem(getReplay(), { carrier: settings.carrier, dacRate: driver.actualRate || settings.rate, level: settings.level })
+        : "Record or load IQ under Record & replay above.";
+    }
     let exportValid = true;
     try { validateTx(getSettings()); } catch { exportValid = false; }
     document.getElementById("txExport").disabled = locked || !exportValid;
-    refreshTx(valid);
+    refreshTx(problem);
     field("Files").hidden = field("Source").value !== "files";
-    field("ChannelLabel").hidden = field("Source").value === "files";
+    field("ChannelLabel").hidden = field("Source").value !== "generated";
     field("ActualRate").textContent = driver.actualRate ? `Actual DAC rate: ${(driver.actualRate / 1e6).toFixed(6)} MS/s` : "Actual DAC rate: not configured";
   }
   function lock(value) {
@@ -190,6 +198,16 @@ export function installFl2kPanel({ getSettings, generate }) {
       options[field("Channel").value] = await generate(config, () => !field("Armed").checked || !driver.connected || document.hidden);
       onAirMhz = (config.carrier / 1e6).toFixed(3);
       onAirConfig = `${config.mode} at ${(config.carrier / 1e6).toFixed(3)} MHz · ${rate} · ${field("Channel").value} DAC`;
+    } else if (field("Source").value === "replay") {
+      const recording = getReplay();
+      const settings = getSettings();
+      const plan = { carrier: settings.carrier, dacRate: driver.actualRate, level: settings.level };
+      const length = replayLength(recording, driver.actualRate);
+      status(`Preparing ${length.seconds.toFixed(2)} s of IQ replay… not on air yet.`);
+      options.red = await renderReplay(recording, plan, () => !field("Armed").checked || !driver.connected || document.hidden);
+      onAirMhz = (settings.carrier / 1e6).toFixed(3);
+      const part = length.truncated ? `first ${length.seconds.toFixed(2)} s of ${duration(recording).toFixed(2)} s` : `${length.seconds.toFixed(2)} s`;
+      onAirConfig = `IQ replay (${part}, recorded at ${(recording.frequency / 1e6).toFixed(3)} MHz) · ${rate} · red DAC`;
     } else {
       options.signed = field("Encoding").value === "signed";
       for (const name of ["Red", "Green", "Blue"]) {

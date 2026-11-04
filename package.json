@@ -20,12 +20,14 @@
     "build:site": "npm run build && npm run build:fl2k && node scripts/build-site.mjs",
     "serve": "node scripts/serve.mjs",
     "build:iwa": "node scripts/build-iwa.mjs",
-    "test": "node tests/e2e-build.mjs && node tests/e2e-fl2k-panel.mjs && node tests/e2e-transcriber.mjs"
+    "test": "node tests/e2e-build.mjs && node tests/e2e-fl2k-panel.mjs && node tests/e2e-transmission.mjs && node tests/e2e-replay.mjs && node tests/e2e-transcriber.mjs",
+    "test:hardware": "npm run build && node tests/hw-fl2k-loopback.mjs"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.3.1",
     "esbuild": "^0.25.12",
     "typescript": "^5.6.3",
+    "usb": "^3.2.1",
     "wbn": "^0.0.9",
     "wbn-sign": "^0.3.3"
   },

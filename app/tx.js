@@ -1,6 +1,8 @@
 import { prepareTx, validateTx, txSample } from "./tx-signal.js";
 import { playbooks } from "./tx-playbooks.js";
 import { installFl2kPanel } from "./fl2k-panel.js";
+import { iqRecorder } from "./iq-replay.js";
+import { installReplayPanel } from "./replay-panel.js";
 
 let hardware;
 
@@ -11,6 +13,7 @@ function settings() {
 }
 function refresh() {
   const config = settings();
+  document.getElementById("txRateNote").hidden = !(config.rate > 80e6);
   field("ToneLabel").hidden = !["AM", "FM"].includes(config.mode);
   field("DepthLabel").hidden = config.mode !== "AM";
   field("DeviationLabel").hidden = !["FM", "2-FSK"].includes(config.mode);
@@ -41,16 +44,19 @@ function refresh() {
 }
 // The DAC must run well above twice the carrier. Raise (never lower) the rate
 // when a higher frequency needs it, and say so.
+const replaying = () => document.getElementById("fl2kSource").value === "replay" && iqRecorder.recording;
 function fitRate() {
   const carrier = numeric("Carrier");
   const rate = numeric("Rate");
   const note = document.getElementById("txFreqNote");
   if (!(carrier > 0) || !Number.isFinite(rate)) return;
-  const needed = Math.ceil(carrier * 2.5);
+  // A replay occupies the recording's whole bandwidth above the carrier too.
+  const top = carrier + (replaying() ? iqRecorder.recording.sampleRate / 2e6 : 0);
+  const needed = Math.ceil(top * 2.5);
   // Keep "raised to" until the next change; drop the limit warning once it no longer applies.
   if (needed <= 160 && note.textContent.startsWith("Highest")) note.textContent = "";
   if (needed > 160) {
-    note.textContent = `Highest usable frequency is about ${(160 / 2.5).toFixed(0)} MHz (DAC limit 160 MS/s).`;
+    note.textContent = `Highest usable frequency is about ${(160 / 2.5 - (top - carrier)).toFixed(0)} MHz (DAC limit 160 MS/s).`;
   } else if (needed > rate) {
     field("Rate").value = String(needed);
     note.textContent = `DAC rate raised to ${needed} MS/s to carry ${carrier} MHz.`;
@@ -163,4 +169,22 @@ field("Delete").addEventListener("click", () => {
 });
 renderPresets();
 loadPreset();
-hardware = installFl2kPanel({ getSettings: settings, generate });
+hardware = installFl2kPanel({ getSettings: settings, generate, getReplay: () => iqRecorder.recording });
+document.getElementById("fl2kSource").addEventListener("change", () => { fitRate(); refresh(); });
+const rxFrequency = () => Number.parseFloat(document.getElementById("freqInput").value) * 1e6;
+installReplayPanel({
+  recorder: iqRecorder,
+  rxFrequency,
+  onUse(recording) {
+    document.getElementById("fl2kSource").value = "replay";
+    const half = recording.sampleRate / 2;
+    const reachable = recording.frequency - half > 0 && (recording.frequency + half) * 2.5 <= 160e6;
+    if (reachable) field("Carrier").value = String(Math.round(recording.frequency) / 1e6);
+    fitRate();
+    refresh();
+    document.getElementById("txControl").scrollIntoView({ block: "nearest" });
+    return reachable
+      ? `Transmit is set to replay at ${(recording.frequency / 1e6).toFixed(3)} MHz, where it was recorded. Press Transmit when your setup is ready.`
+      : `Recorded at ${(recording.frequency / 1e6).toFixed(3)} MHz, beyond the FL2K's reach (about 64 MHz). It will replay at the transmit frequency above (${field("Carrier").value} MHz); change it if needed.`;
+  },
+});

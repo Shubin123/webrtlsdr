@@ -50,6 +50,8 @@ const required = [
   "tx.js",
   "tx-signal.js",
   "tx-playbooks.js",
+  "iq-replay.js",
+  "replay-panel.js",
   "player.js",
   "capabilities.html",
   "stt/start.js",
@@ -144,7 +146,7 @@ test("index.html has a Content-Security-Policy", () => {
 // --------------------------------------------------------------------------
 
 test("app JS files do not reference remote hosts", () => {
-  const appFiles = ["app.js", "fl2k-panel.js", "fl2k-device.js", "transcriber.js", "tx.js", "tx-signal.js", "player.js"];
+  const appFiles = ["app.js", "fl2k-panel.js", "fl2k-device.js", "transcriber.js", "tx.js", "tx-signal.js", "player.js", "iq-replay.js", "replay-panel.js"];
   const hosts = ["huggingface.co", "jsdelivr", "unpkg.com", "cdnjs.cloudflare.com"];
   for (const file of appFiles) {
     const code = fs.readFileSync(path.join(site, file), "utf8");

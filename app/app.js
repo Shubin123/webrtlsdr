@@ -28,6 +28,7 @@ import {
 import { FakeRtlDeviceProvider } from "./lib/webrtlsdr/fakertl/fakertl.js";
 import { RadioErrorType } from "./lib/webrtlsdr/errors.js";
 import { RecordingPlayer } from "./player.js";
+import { iqRecorder } from "./iq-replay.js";
 import { MODELS, Transcriber } from "./transcriber.js";
 
 // ---------------------------------------------------------------------------
@@ -171,7 +172,7 @@ const demodulator = new Demodulator({ player });
 const spectrum = new Spectrum(settings.fftSize);
 const radio = new Radio(
   new RtlProvider(new SwitchableProvider()),
-  CompositeReceiver.of(demodulator, spectrum),
+  CompositeReceiver.of(demodulator, spectrum, iqRecorder),
   { buffersPerSecond: settings.buffersPerSecond },
 );
 

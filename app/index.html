@@ -67,6 +67,7 @@
             </div>
             <button id="txMatchRx" type="button" class="link">Match RX frequency</button>
             <p id="txFreqNote"></p>
+            <p id="txRateNote" class="tx-warning" hidden>Above 80 MS/s some FL2K adapters intermittently start with no output. The app restarts the adapter when it can detect this, but not always: if your receiver hears nothing, stop and press Transmit again, or use a carrier below 32 MHz.</p>
           </div>
           <div class="tx-control-state" role="status" aria-live="assertive"><span class="dot"></span><span id="txControlState">TX off</span></div>
           <p id="txControlDetail">Not transmitting.</p>
@@ -74,6 +75,21 @@
           <label class="tx-option"><input id="fl2kRepeat" type="checkbox" /> Keep transmitting until I press Stop</label>
           <button id="fl2kStart" type="button" class="tx-button" disabled>Transmit</button>
           <p id="txBlocked" class="tx-blocked"></p>
+        </section>
+        <section class="iq-replay" aria-labelledby="iqTitle">
+          <h3 id="iqTitle">Record &amp; replay</h3>
+          <p>Record raw IQ from the receiver, then transmit it again on the FL2K red output.</p>
+          <div class="iq-row">
+            <button id="iqRecord" type="button" disabled>● Record IQ</button>
+            <label>for <input id="iqSeconds" type="number" min="0.1" max="10" step="0.1" value="2" /> s</label>
+          </div>
+          <p id="iqStatus" role="status">No recording. Start RX to record.</p>
+          <div class="iq-row">
+            <button id="iqUse" type="button" disabled>Replay with Transmit</button>
+            <button id="iqSave" type="button" disabled>Save .cu8</button>
+            <label class="button">Load…<input id="iqLoad" type="file" accept=".cu8,.cs8,.bin,.raw" hidden /></label>
+          </div>
+          <p id="iqNote"></p>
         </section>
         <details class="fl2k-hardware">
           <summary>FL2K hardware · WebUSB + Wasm<span id="fl2kStatus" role="status">Checking authorized USB devices…</span></summary>
@@ -99,7 +115,7 @@
           <button id="fl2kRate" type="button" disabled>Apply DAC sample rate</button>
           <p id="fl2kActualRate">Actual DAC rate: not configured</p>
           <p id="fl2kThroughput" aria-live="off">USB transfer statistics appear during TX.</p>
-          <label>TX source<select id="fl2kSource"><option value="generated">Generated modulation</option><option value="files">Raw RGB files</option></select></label>
+          <label>TX source<select id="fl2kSource"><option value="generated">Generated modulation</option><option value="replay">Recorded IQ (replay)</option><option value="files">Raw RGB files</option></select></label>
           <label id="fl2kChannelLabel">Generated waveform DAC<select id="fl2kChannel"><option value="red">Red</option><option value="green">Green</option><option value="blue">Blue</option></select></label>
           <div id="fl2kFiles" hidden>
             <label>Red raw samples<input id="fl2kRed" type="file" accept=".s8,.u8,.bin,.raw" /></label>

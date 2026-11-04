@@ -361,6 +361,13 @@ button.tx-button:hover:not(:disabled) { border-color: var(--bad); }
 .tx-control[data-state="on"] button.tx-button, .tx-control[data-state="starting"] button.tx-button, .tx-control[data-state="stopping"] button.tx-button { background: #fff; color: #b0141c; border-color: #fff; }
 .fl2k-hardware button { margin: 3px 0; white-space: normal; }
 .fl2k-hardware [hidden] { display: none; }
+.iq-replay { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+.iq-replay h3 { margin: 0 0 4px; font-size: 14px; }
+.iq-replay p { margin: 6px 0; }
+.iq-replay .iq-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tx-panel .iq-replay .iq-row label { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
+.tx-panel .iq-replay .iq-row input[type="number"] { display: inline; width: 5em; margin: 0; }
+#iqRecord.active { border-color: var(--bad); color: var(--bad); font-weight: 600; }
 .fl2k-iwa { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-size: 12px; }
 .fl2k-iwa .button { display: inline-block; margin-top: 6px; }
 .fl2k-install { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); }

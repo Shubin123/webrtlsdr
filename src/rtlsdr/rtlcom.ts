@@ -47,8 +47,8 @@ export class RtlCom {
   /** Returns branding information. */
   getBranding(): { manufacturer?: string; model?: string } {
     return {
-      manufacturer: this.device.manufacturerName,
-      model: this.device.productName,
+      manufacturer: this.device.manufacturerName ?? undefined,
+      model: this.device.productName ?? undefined,
     };
   }
 

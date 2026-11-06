@@ -53,7 +53,7 @@ works too.
    **Enable Isolated Web App Developer Mode** and **Enable Isolated Web Apps to
    bypass USB restrictions**, then relaunch Chrome. Developer mode lets Chrome
    install apps that are not from a store; only install bundles you trust.
-2. Download [`webrtlsdr.swbn`](https://github.com/Shubin123/webrtlsdr/releases/download/installable-app/webrtlsdr.swbn)
+2. Download [`webrtlsdr.swbn`](https://github.com/Shubin123/webrtlsdr/releases/latest/download/webrtlsdr.swbn)
    (127 MB: the whole app, including both speech models).
 3. Open `chrome://iwa-dev`, click **Install**, choose **Signed Bundle**, pick
    the file and install. Open **Web RTL-SDR** from Chrome's apps.
@@ -89,8 +89,10 @@ off after every transmission.
 2. Select generated modulation on the red/green/blue DAC, or load equal-length
    raw 8-bit sample files for any combination of RGB channels. Raw files are
    real DAC streams, not IQ, WAV or audio files. Unused DACs remain at midpoint.
-3. Tick the setup confirmation, optionally tick **Keep transmitting until I
-   press Stop**, and press **Transmit**. It connects, applies the DAC rate and
+3. Tick the setup confirmation and press **Transmit**. It transmits until you
+   press Stop, repeating the waveform; tick **Send once** to send the set
+   duration a single time instead (0.1 s by default, too short for most
+   receivers to show). It connects, applies the DAC rate and
    prepares the samples ("TX preparing", amber, not on air yet, **Cancel**
    aborts), then goes on air. Below the Transmit button the panel says why
    Transmit is disabled, if it is.
@@ -99,8 +101,8 @@ off after every transmission.
    button, the whole window gets a red frame, and the tab title starts with
    "● TX ON AIR". Red is not used for anything else; RX playing is green.
 5. **Stop transmitting**, the top bar's **Stop TX**, or hiding the page stops TX
-   and closes USB. A one-shot transmission stops by itself. Either way both
-   ticks are cleared, so the next transmission needs a fresh confirmation.
+   and closes USB. A **Send once** transmission stops by itself. Either way the
+   setup confirmation is cleared, so the next transmission needs a fresh one.
    Browser shutdown cannot guarantee cleanup; unplug to guarantee RF output is
    removed. Queue depth (one to four USB transfers) and transfer statistics are
    under FL2K hardware; statistics show host throughput, not gap-free RF output.

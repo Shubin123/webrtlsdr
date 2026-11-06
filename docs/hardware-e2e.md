@@ -149,3 +149,28 @@ Repeated on October 27, 2026 with the transmit-frequency control (the frequency 
 typed into the TX box, which raised the DAC to 101 MS/s by itself): 40.2 MHz CW,
 RTL-SDR signal meter 15 dB with TX off, 40 dB on the carrier, 16 dB tuned 4 MHz
 away, 16 dB after Stop TX; the pill read "ON AIR 40.200 MHz". Pass.
+
+## Installed app UI loopback (November 6, 2026)
+
+Chrome 156.0.8078.80, macOS, same FL2K and RTL-SDR, cabled and attenuated.
+`npm run test:hardware-ui` installs the signed bundle in a throwaway Chrome
+profile and clicks through the app: real RTL-SDR RX in AM at 30.2 MHz, then
+Transmit (CW, 30.2 MHz, DAC raised to 76 MS/s) with the default settings.
+
+- The bundle released on November 4 failed. With its defaults, Transmit sent
+  0.1 s once and stopped, about 0.1 s on air, so a receiver barely shows it.
+  Ticking "Keep transmitting until I press Stop" worked (61 dB on the meter
+  against 10 dB with TX off).
+- Fixed: Transmit now stays on air until Stop. "Send once" is an opt-in.
+  The new bundle passed every check: on air for the whole 5 s, signal meter
+  median 57 and 60 dB on two consecutive transmissions (6 dB idle, 8 and 13 dB
+  after Stop), and a 1 s IQ recording of an OOK transmission, replayed with
+  Transmit, received at 43 dB (14 dB before).
+- The driver-level loopback (`npm run test:hardware`) passed 15 of 15 checks
+  several times. Once, its replay bit-pattern check failed after long
+  transmitting. The next four runs passed (r=0.75–0.84 against the 0.6
+  threshold).
+
+Chrome's USB chooser cannot be automated, so the test grants both devices to
+the app's origin with Chrome's `WebUsbAllowDevicesForUrls` policy. It removes
+the policy when it finishes.

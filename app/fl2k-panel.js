@@ -12,6 +12,7 @@ export function installFl2kPanel({ getSettings, generate, getReplay = () => null
   let onAirSince = 0;
   let onAirConfig = "";
   let onAirMhz = "";
+  let onAirUntil = "";
   let onAirTimer;
   let lastError = "";
   const title = document.title;
@@ -52,7 +53,7 @@ export function installFl2kPanel({ getSettings, generate, getReplay = () => null
     document.getElementById("txControlDetail").textContent = {
       off: lastError ? `Not transmitting. Last attempt: ${lastError}` : "Not transmitting.",
       starting: "Connecting and preparing samples. Not on air yet.",
-      on: `On air for ${((performance.now() - onAirSince) / 1000).toFixed(1)} s · ${onAirConfig}`,
+      on: `On air for ${((performance.now() - onAirSince) / 1000).toFixed(1)} s, ${onAirUntil} · ${onAirConfig}`,
       stopping: "Stopping and closing USB…",
     }[state];
     document.getElementById("txIndicator").dataset.state = state;
@@ -164,7 +165,6 @@ export function installFl2kPanel({ getSettings, generate, getReplay = () => null
   ["Armed", "Source", "Red", "Green", "Blue"].forEach((name) => field(name).addEventListener("change", refresh));
   async function stopTx() {
     field("Armed").checked = false;
-    field("Repeat").checked = false;
     stopping = true;
     refresh();
     status("Stopping TX and closing USB…");
@@ -182,7 +182,7 @@ export function installFl2kPanel({ getSettings, generate, getReplay = () => null
       refresh();
       try { await transmit(); }
       catch (error) { lastError = error.message; throw error; }
-      finally { starting = false; field("Armed").checked = false; field("Repeat").checked = false; }
+      finally { starting = false; field("Armed").checked = false; }
     });
   });
   async function transmit() {
@@ -190,7 +190,8 @@ export function installFl2kPanel({ getSettings, generate, getReplay = () => null
     if (!driver.connected) await driver.open(selectedDevice());
     await driver.setSampleRate(getSettings().rate);
     const rate = `${(driver.actualRate / 1e6).toFixed(3)} MS/s`;
-    const options = { signed: true, repeat: field("Repeat").checked, queueDepth: Number(field("Queue").value) };
+    const options = { signed: true, repeat: !field("Once").checked, queueDepth: Number(field("Queue").value) };
+    onAirUntil = options.repeat ? "until you press Stop" : "sending once";
     if (field("Source").value === "generated") {
       const config = prepareTx({ ...getSettings(), rate: driver.actualRate });
       validateTx(config);
